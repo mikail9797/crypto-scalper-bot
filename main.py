@@ -131,16 +131,16 @@ class SignalStats:
         text += f"Всего сигналов: <b>{day_data['total']}</b>\n"
         text += f"🚀 A-SIGNAL: {day_data.get('A', 0)}\n"
         text += f"⚡ B-SIGNAL: {day_data.get('B', 0)}\n"
-        text += f"🟢 LONG: {day_data['LONG']} |                🔴 SHORT: {day_data['SHORT text']}\n\n"
+        text += f"🟢 LONG: {day_data['LONG']} | 🔴 SHORT: {day_data['SHORT']}\n\n"
         
-        if day_data.get +=('symbols f'):
-            text += "<b>"По монетам:</b>\n"
-            sorted _symbols = sorted(
+        if day_data.get('symbols'):
+            text += "<b>По монетам:</b>\n"
+            sorted_symbols = sorted(
                 day_data['symbols'].items(), 
                 key=lambda x: x[1], reverse=True
             )
             for sym, cnt in sorted_symbols:
- • {sym}: {cnt}\n"
+                text += f"  • {sym}: {cnt}\n"
         
         text += f"\n📈 <b>Всего за всё время:</b>\n"
         text += f"Сигналов: {self.data['total_signals']}\n"
