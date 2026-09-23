@@ -22,13 +22,18 @@ COINGLASS_HEADERS = {
     "CG-API-KEY": os.environ.get("COINGLASS_API_KEY", "")
 }
 
-SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "ADAUSDT", "XRPUSDT", "ONDOUSDT", "AVAXUSDT", "LINKUSDT", "DOGEUSDT", "DOTUSDT", "ZECUSDT", "NEARUSDT", "SUIUSDT", "ENAUSDT", "UNIUSDT"]
+SYMBOLS = [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
+    "XRPUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT",
+    "LINKUSDT", "DOTUSDT"
+]
+
 TIMEFRAME_A = "5m"
 TIMEFRAME_B = "3m"
 SWING_ATR_MULT = 1.5
 SWING_MIN_BARS = 3
 CANDLES_LIMIT = 300
-WS_WAIT_SECONDS = 15
+WS_WAIT_SECONDS = 10
 
 STATS_FILE = Path("signal_stats.json")
 DAILY_REPORT_HOUR_UTC = 0
@@ -126,16 +131,16 @@ class SignalStats:
         text += f"Всего сигналов: <b>{day_data['total']}</b>\n"
         text += f"🚀 A-SIGNAL: {day_data.get('A', 0)}\n"
         text += f"⚡ B-SIGNAL: {day_data.get('B', 0)}\n"
-        text += f"🟢 LONG: {day_data['LONG']} | 🔴 SHORT: {day_data['SHORT']}\n\n"
+        text += f"🟢 LONG: {day_data['LONG']} |                🔴 SHORT: {day_data['SHORT text']}\n\n"
         
-        if day_data.get('symbols'):
-            text += "<b>По монетам:</b>\n"
-            sorted_symbols = sorted(
+        if day_data.get +=('symbols f'):
+            text += "<b>"По монетам:</b>\n"
+            sorted _symbols = sorted(
                 day_data['symbols'].items(), 
                 key=lambda x: x[1], reverse=True
             )
             for sym, cnt in sorted_symbols:
-                text += f"  • {sym}: {cnt}\n"
+ • {sym}: {cnt}\n"
         
         text += f"\n📈 <b>Всего за всё время:</b>\n"
         text += f"Сигналов: {self.data['total_signals']}\n"
@@ -209,35 +214,48 @@ class CoinGlassClient:
 # ==================== WEBSOCKET ЛИКВИДАЦИЙ ====================
 
 class QuickLiquidationStream:
+    """
+    WebSocket ликвидаций CoinGlass.
+    Если не удаётся подключиться — просто не собирает данные, бот продолжает работу.
+    """
     def __init__(self, api_key: str):
-        self.ws_url = f"wss://open-api-v4.coinglass.com/ws?CG-API-KEY={api_key}"
+        self.ws_url = f"wss://open-ws.coinglass.com/ws-api?cg-api-key={api_key}"
         self.recent = deque(maxlen=200)
         self._lock = threading.Lock()
         self.should_run = True
         self.ws = None
+        self.connected = False
 
     def _on_message(self, ws, message):
         try:
             data = json.loads(message)
-            if data.get("channel") == "liquidation_orders":
+            channel = data.get("channel") or data.get("c")
+            
+            if channel in ("liquidation_orders", "liquidationOrders"):
+                orders = data.get("data") or data.get("d") or []
                 with self._lock:
-                    for order in data.get("data", []):
+                    for order in orders:
                         self.recent.append({
-                            "side": order.get("side"),
-                            "volume_usd": float(order.get("volume_usd", 0)),
+                            "side": order.get("side") or order.get("s"),
+                            "volume_usd": float(order.get("volume_usd") or order.get("v") or 0),
                             "timestamp": time.time()
                         })
         except Exception:
             pass
 
     def _on_open(self, ws):
+        self.connected = True
         ws.send(json.dumps({
             "method": "subscribe",
-            "params": ["liquidation_orders"]
+            "channels": ["liquidationOrders"]
         }))
 
     def _on_error(self, ws, error):
-        print(f"[WS] {error}")
+        # Тихая обработка — не засоряем логи
+        self.connected = False
+
+    def _on_close(self, ws, code, msg):
+        self.connected = False
 
     def _run(self):
         try:
@@ -245,11 +263,12 @@ class QuickLiquidationStream:
                 self.ws_url,
                 on_open=self._on_open,
                 on_message=self._on_message,
-                on_error=self._on_error
+                on_error=self._on_error,
+                on_close=self._on_close
             )
             self.ws.run_forever(ping_interval=20, ping_timeout=5)
-        except Exception as e:
-            print(f"[WS] Connection failed: {e}")
+        except Exception:
+            pass
 
     def start(self):
         threading.Thread(target=self._run, daemon=True).start()
@@ -269,7 +288,7 @@ class QuickLiquidationStream:
         with self._lock:
             for liq in self.recent:
                 if liq["timestamp"] > cutoff:
-                    if liq["side"] == "long":
+                    if liq["side"] in ("long", "LONG"):
                         long_liq += liq["volume_usd"]
                     else:
                         short_liq += liq["volume_usd"]
@@ -618,11 +637,14 @@ def send_signal(signal: Dict, symbol: str):
         print(f"  [Telegram] {sig_type}-signal sent for {symbol}")
 
 
-# ==================== БИРЖА ====================
+# ==================== БИРЖА (OKX) ====================
 
 def fetch_ohlcv(symbol: str, timeframe: str, limit: int = 300) -> pd.DataFrame:
-    exchange = ccxt.binance({'enableRateLimit': True})
-    ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+    """Получение свечей с OKX (работает с GitHub Actions)"""
+    okx_symbol = symbol.replace("USDT", "-USDT")
+    
+    exchange = ccxt.okx({'enableRateLimit': True})
+    ohlcv = exchange.fetch_ohlcv(okx_symbol, timeframe, limit=limit)
     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low',
                                        'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
@@ -634,7 +656,7 @@ def fetch_ohlcv(symbol: str, timeframe: str, limit: int = 300) -> pd.DataFrame:
 
 def main():
     print("=" * 50)
-    print("Crypto Scalper Bot — A(5m) + B(3m)")
+    print("Crypto Scalper Bot — A(5m) + B(3m) [OKX]")
     print(f"Time: {datetime.datetime.utcnow().isoformat()} UTC")
     print("=" * 50)
 
@@ -722,7 +744,6 @@ def main():
         if report:
             print("[Report] Sending daily report...")
             if _send_telegram_raw(report):
-                stats.mark_sent = True
                 stats.mark_report_sent()
                 stats.save()
                 print("[Report] Sent successfully")
