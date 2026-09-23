@@ -214,10 +214,6 @@ class CoinGlassClient:
 # ==================== WEBSOCKET ЛИКВИДАЦИЙ ====================
 
 class QuickLiquidationStream:
-    """
-    WebSocket ликвидаций CoinGlass.
-    Если не удаётся подключиться — просто не собирает данные, бот продолжает работу.
-    """
     def __init__(self, api_key: str):
         self.ws_url = f"wss://open-ws.coinglass.com/ws-api?cg-api-key={api_key}"
         self.recent = deque(maxlen=200)
@@ -251,7 +247,6 @@ class QuickLiquidationStream:
         }))
 
     def _on_error(self, ws, error):
-        # Тихая обработка — не засоряем логи
         self.connected = False
 
     def _on_close(self, ws, code, msg):
@@ -298,21 +293,29 @@ class QuickLiquidationStream:
 # ==================== ИНДИКАТОРЫ ====================
 
 def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    # Supertrend
     st = df.ta.supertrend(length=10, multiplier=3.0)
-    df['st_direction'] = st['SUPERTd_10_3.0']
+    st_dir_col = [c for c in st.columns if c.startswith('SUPERTd')][0]
+    df['st_direction'] = st[st_dir_col]
 
     if not isinstance(df.index, pd.DatetimeIndex):
         df.index = pd.to_datetime(df.index, unit='ms')
 
     df['vwap'] = df.ta.vwap()
 
+    # Bollinger Bands
     bb = df.ta.bbands(length=20, std=2)
-    df['bb_upper'] = bb['BBU_20_2.0']
-    df['bb_lower'] = bb['BBL_20_2.0']
+    bb_upper_col = [c for c in bb.columns if c.startswith('BBU')][0]
+    bb_lower_col = [c for c in bb.columns if c.startswith('BBL')][0]
+    df['bb_upper'] = bb[bb_upper_col]
+    df['bb_lower'] = bb[bb_lower_col]
 
+    # Stochastic RSI
     stochrsi = df.ta.stochrsi(length=14, rsi_length=7, k=3, d=3)
-    df['stoch_k'] = stochrsi['STOCHRSIk_14_7_3_3']
-    df['stoch_d'] = stochrsi['STOCHRSId_14_7_3_3']
+    stoch_k_col = [c for c in stochrsi.columns if c.startswith('STOCHRSIk')][0]
+    stoch_d_col = [c for c in stochrsi.columns if c.startswith('STOCHRSId')][0]
+    df['stoch_k'] = stochrsi[stoch_k_col]
+    df['stoch_d'] = stochrsi[stoch_d_col]
 
     df['atr'] = df.ta.atr(length=14)
     df['ema_200'] = df.ta.ema(length=200)
@@ -640,7 +643,6 @@ def send_signal(signal: Dict, symbol: str):
 # ==================== БИРЖА (OKX) ====================
 
 def fetch_ohlcv(symbol: str, timeframe: str, limit: int = 300) -> pd.DataFrame:
-    """Получение свечей с OKX (работает с GitHub Actions)"""
     okx_symbol = symbol.replace("USDT", "-USDT")
     
     exchange = ccxt.okx({'enableRateLimit': True})
