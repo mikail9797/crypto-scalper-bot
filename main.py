@@ -818,4 +818,104 @@ def fetch_ohlcv(symbol: str, timeframe: str, limit: int = 300) -> pd.DataFrame:
 
 def main():
     print("=" * 50)
-    print("C
+    print("Crypto Scalper Bot — A(5m) + B(3m) [OKX]")
+    print(f"Time: {datetime.datetime.utcnow().isoformat()} UTC")
+    print("=" * 50)
+
+    api_key = os.environ.get("COINGLASS_API_KEY", "")
+    if not api_key:
+        print("[ERROR] COINGLASS_API_KEY not set")
+        return
+
+    stats = SignalStats()
+    print(f"[Stats] Total signals so far: {stats.data['total_signals']}")
+    print(f"[Stats] Active signals: {len(stats.data.get('active_signals', []))}")
+
+    # Проверяем активные сигналы ПЕРЕД поиском новых
+    check_active_signals(stats)
+
+    cg = CoinGlassClient(cache_ttl=90)
+
+    liq_stream = QuickLiquidationStream(api_key)
+    liq_stream.start()
+    print(f"[WS] Collecting liquidations for {WS_WAIT_SECONDS}s...")
+    time.sleep(WS_WAIT_SECONDS)
+
+    new_signals = 0
+
+    for symbol in SYMBOLS:
+        try:
+            # ===== A-СИГНАЛ (5m) =====
+            print(f"\n--- {symbol} [A-SIGNAL 5m] ---")
+            df_a = fetch_ohlcv(symbol, TIMEFRAME_A, limit=CANDLES_LIMIT)
+            df_a = calculate_indicators(df_a)
+
+            signal_a = generate_signal_a(df_a)
+            if signal_a:
+                patterns = detect_candlestick_patterns(df_a)
+                swings = find_swings_atr(df_a, SWING_ATR_MULT, SWING_MIN_BARS)
+                hs = detect_head_and_shoulders(swings)
+                dt = detect_double_top_bottom(swings)
+
+                confirmations = []
+                if signal_a['signal'] == 'LONG' and patterns.get('engulfing_bullish'):
+                    confirmations.append('бычье поглощение')
+                if signal_a['signal'] == 'SHORT' and patterns.get('engulfing_bearish'):
+                    confirmations.append('медвежье поглощение')
+                if hs and hs['signal'] == signal_a['signal']:
+                    confirmations.append(hs['pattern'])
+                if dt and dt['signal'] == signal_a['signal']:
+                    confirmations.append(dt['pattern'])
+
+                pressure = liq_stream.get_pressure(window_seconds=300)
+                if signal_a['signal'] == 'LONG' and pressure['long_liquidated_usd'] > 1_000_000:
+                    confirmations.append(f"Long squeeze ${pressure['long_liquidated_usd']/1e6:.1f}M")
+                if signal_a['signal'] == 'SHORT' and pressure['short_liquidated_usd'] > 1_000_000:
+                    confirmations.append(f"Short squeeze ${pressure['short_liquidated_usd']/1e6:.1f}M")
+
+                signal_a = apply_coinglass_filter(signal_a, cg, symbol)
+                if confirmations:
+                    signal_a['confirmations'] = signal_a.get('confirmations', []) + confirmations
+
+                print(f"  A: {signal_a['signal']} @ {signal_a['entry']:.4f}")
+                send_signal(signal_a, symbol)
+                stats.add_signal(signal_a, symbol)
+                new_signals += 1
+            else:
+                print(f"  No A-signal")
+
+            # ===== B-СИГНАЛ (3m) =====
+            print(f"--- {symbol} [B-SIGNAL 3m] ---")
+            df_b = fetch_ohlcv(symbol, TIMEFRAME_B, limit=CANDLES_LIMIT)
+            signal_b = generate_signal_b(df_b)
+
+            if signal_b:
+                signal_b = apply_coinglass_filter(signal_b, cg, symbol)
+                print(f"  B: {signal_b['signal']} @ {signal_b['entry']:.4f}")
+                send_signal(signal_b, symbol)
+                stats.add_signal(signal_b, symbol)
+                new_signals += 1
+            else:
+                print(f"  No B-signal")
+
+        except Exception as e:
+            print(f"[ERROR] {symbol}: {e}")
+
+    liq_stream.stop()
+    stats.save()
+    print(f"\n[Stats] New signals this run: {new_signals}")
+
+    if stats.should_send_daily_report():
+        report = stats.build_daily_report()
+        if report:
+            print("[Report] Sending daily report...")
+            if _send_telegram_raw(report):
+                stats.mark_report_sent()
+                stats.save()
+                print("[Report] Sent successfully")
+
+    print("\nDone.")
+
+
+if __name__ == "__main__":
+    main()
