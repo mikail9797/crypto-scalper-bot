@@ -1,11 +1,32 @@
 {
-  "total_signals": 0,
-  "a_signals": 0,
+  "total_signals": 2,
+  "a_signals": 2,
   "b_signals": 0,
   "long_count": 0,
-  "short_count": 0,
-  "by_symbol": {},
-  "by_day": {},
+  "short_count": 2,
+  "by_symbol": {
+    "ETHUSDT": {
+      "LONG": 0,
+      "SHORT": 1
+    },
+    "DOGEUSDT": {
+      "LONG": 0,
+      "SHORT": 1
+    }
+  },
+  "by_day": {
+    "2026-09-23": {
+      "total": 2,
+      "A": 2,
+      "B": 0,
+      "LONG": 0,
+      "SHORT": 2,
+      "symbols": {
+        "ETHUSDT": 1,
+        "DOGEUSDT": 1
+      }
+    }
+  },
   "last_report_date": null,
   "started_at": "2026-09-22T14:18:10.775457"
 }
