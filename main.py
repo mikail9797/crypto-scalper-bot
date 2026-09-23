@@ -38,6 +38,11 @@ WS_WAIT_SECONDS = 10
 STATS_FILE = Path("signal_stats.json")
 DAILY_REPORT_HOUR_UTC = 0
 
+# Через сколько часов считать сигнал «не сработавшим»
+SIGNAL_TIMEOUT_HOURS = 6
+# Минимальный возраст сигнала для проверки (часы)
+SIGNAL_MIN_AGE_HOURS = 1
+
 
 # ==================== СТАТИСТИКА ====================
 
@@ -62,6 +67,12 @@ class SignalStats:
             "short_count": 0,
             "by_symbol": {},
             "by_day": {},
+            "active_signals": [],
+            "completed_signals": [],
+            "tp_stats": {
+                "tp1_hit": 0, "tp2_hit": 0, "tp3_hit": 0,
+                "sl_hit": 0, "no_hit": 0
+            },
             "last_report_date": None,
             "started_at": datetime.datetime.utcnow().isoformat()
         }
@@ -107,6 +118,24 @@ class SignalStats:
         if symbol not in day["symbols"]:
             day["symbols"][symbol] = 0
         day["symbols"][symbol] += 1
+        
+        # Сохраняем сигнал для последующей проверки TP/SL
+        if "active_signals" not in self.data:
+            self.data["active_signals"] = []
+        
+        self.data["active_signals"].append({
+            "symbol": symbol,
+            "signal": signal['signal'],
+            "type": sig_type,
+            "entry": signal['entry'],
+            "stop_loss": signal['stop_loss'],
+            "tp1": signal['tp1'],
+            "tp2": signal['tp2'],
+            "tp3": signal['tp3'],
+            "atr": signal['atr'],
+            "created_at": datetime.datetime.utcnow().isoformat(),
+            "result": None
+        })
     
     def should_send_daily_report(self) -> bool:
         now = datetime.datetime.utcnow()
@@ -147,11 +176,145 @@ class SignalStats:
         text += f"🚀 A: {self.data.get('a_signals', 0)} | ⚡ B: {self.data.get('b_signals', 0)}\n"
         text += f"🟢 {self.data['long_count']} | 🔴 {self.data['short_count']}"
         
+        # Статистика TP/SL
+        tp_stats = self.data.get("tp_stats", {})
+        total_checked = sum(tp_stats.values())
+        
+        if total_checked > 0:
+            text += f"\n\n🎯 <b>Статистика TP/SL ({total_checked} проверено):</b>\n"
+            text += f"  TP1: {tp_stats.get('tp1_hit', 0)}\n"
+            text += f"  TP2: {tp_stats.get('tp2_hit', 0)}\n"
+            text += f"  TP3: {tp_stats.get('tp3_hit', 0)}\n"
+            text += f"  SL: {tp_stats.get('sl_hit', 0)}\n"
+            
+            if tp_stats.get('no_hit', 0) > 0:
+                text += f"  Без движения: {tp_stats['no_hit']}\n"
+            
+            wins = (tp_stats.get('tp1_hit', 0) + 
+                    tp_stats.get('tp2_hit', 0) + 
+                    tp_stats.get('tp3_hit', 0))
+            win_rate = wins / total_checked * 100
+            text += f"\n  <b>Win rate: {win_rate:.1f}%</b>"
+        
         return text
     
     def mark_report_sent(self):
         today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         self.data["last_report_date"] = today
+
+
+# ==================== ПРОВЕРКА TP/SL ====================
+
+def check_active_signals(stats: SignalStats):
+    """
+    Проверяет активные сигналы: достигли ли они TP или SL.
+    Вызывается при каждом запуске бота перед поиском новых сигналов.
+    """
+    active = stats.data.get("active_signals", [])
+    if not active:
+        print("[Check] No active signals to check")
+        return
+    
+    now = datetime.datetime.utcnow()
+    still_active = []
+    checked = 0
+    
+    for sig in active:
+        try:
+            signal_time = datetime.datetime.fromisoformat(sig["created_at"])
+            hours_elapsed = (now - signal_time).total_seconds() / 3600
+            
+            # Проверяем только сигналы старше SIGNAL_MIN_AGE_HOURS
+            if hours_elapsed < SIGNAL_MIN_AGE_HOURS:
+                still_active.append(sig)
+                continue
+            
+            # Загружаем свечи для проверки
+            df = fetch_ohlcv(sig["symbol"], TIMEFRAME_A, limit=200)
+            
+            entry = sig["entry"]
+            sl = sig["stop_loss"]
+            tp1 = sig["tp1"]
+            tp2 = sig["tp2"]
+            tp3 = sig["tp3"]
+            direction = sig["signal"]
+            
+            # Ограничиваем проверку свечами после сигнала
+            df_after = df[df.index >= signal_time.replace(tzinfo=None)]
+            
+            if len(df_after) == 0:
+                still_active.append(sig)
+                continue
+            
+            if direction == "LONG":
+                # SL ниже входа — если low свечей ушёл ниже SL
+                if df_after["low"].min() <= sl:
+                    sig["result"] = "SL"
+                    sig["hit_price"] = sl
+                    stats.data["tp_stats"]["sl_hit"] += 1
+                # TP3 выше — если high ушёл выше TP3
+                elif df_after["high"].max() >= tp3:
+                    sig["result"] = "TP3"
+                    sig["hit_price"] = tp3
+                    stats.data["tp_stats"]["tp3_hit"] += 1
+                elif df_after["high"].max() >= tp2:
+                    sig["result"] = "TP2"
+                    sig["hit_price"] = tp2
+                    stats.data["tp_stats"]["tp2_hit"] += 1
+                elif df_after["high"].max() >= tp1:
+                    sig["result"] = "TP1"
+                    sig["hit_price"] = tp1
+                    stats.data["tp_stats"]["tp1_hit"] += 1
+                elif hours_elapsed > SIGNAL_TIMEOUT_HOURS:
+                    sig["result"] = "NO_HIT"
+                    stats.data["tp_stats"]["no_hit"] += 1
+                else:
+                    still_active.append(sig)
+                    continue
+            else:  # SHORT
+                # SL выше входа — если high ушёл выше SL
+                if df_after["high"].max() >= sl:
+                    sig["result"] = "SL"
+                    sig["hit_price"] = sl
+                    stats.data["tp_stats"]["sl_hit"] += 1
+                # TP3 ниже — если low ушёл ниже TP3
+                elif df_after["low"].min() <= tp3:
+                    sig["result"] = "TP3"
+                    sig["hit_price"] = tp3
+                    stats.data["tp_stats"]["tp3_hit"] += 1
+                elif df_after["low"].min() <= tp2:
+                    sig["result"] = "TP2"
+                    sig["hit_price"] = tp2
+                    stats.data["tp_stats"]["tp2_hit"] += 1
+                elif df_after["low"].min() <= tp1:
+                    sig["result"] = "TP1"
+                    sig["hit_price"] = tp1
+                    stats.data["tp_stats"]["tp1_hit"] += 1
+                elif hours_elapsed > SIGNAL_TIMEOUT_HOURS:
+                    sig["result"] = "NO_HIT"
+                    stats.data["tp_stats"]["no_hit"] += 1
+                else:
+                    still_active.append(sig)
+                    continue
+            
+            sig["checked_at"] = now.isoformat()
+            sig["hours_to_result"] = round(hours_elapsed, 1)
+            checked += 1
+            
+            # Перемещаем в завершённые
+            if "completed_signals" not in stats.data:
+                stats.data["completed_signals"] = []
+            stats.data["completed_signals"].append(sig)
+            
+            print(f"  [Check] {sig['symbol']} {sig['signal']}: {sig['result']}")
+            
+        except Exception as e:
+            print(f"  [Check] Error for {sig.get('symbol', '?')}: {e}")
+            still_active.append(sig)
+    
+    stats.data["active_signals"] = still_active
+    if checked > 0:
+        print(f"[Stats] Checked {checked} signals, {len(still_active)} still active")
 
 
 # ==================== COINGLASS REST ====================
@@ -293,7 +456,6 @@ class QuickLiquidationStream:
 # ==================== ИНДИКАТОРЫ ====================
 
 def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    # Supertrend
     st = df.ta.supertrend(length=10, multiplier=3.0)
     st_dir_col = [c for c in st.columns if c.startswith('SUPERTd')][0]
     df['st_direction'] = st[st_dir_col]
@@ -303,14 +465,12 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     df['vwap'] = df.ta.vwap()
 
-    # Bollinger Bands
     bb = df.ta.bbands(length=20, std=2)
     bb_upper_col = [c for c in bb.columns if c.startswith('BBU')][0]
     bb_lower_col = [c for c in bb.columns if c.startswith('BBL')][0]
     df['bb_upper'] = bb[bb_upper_col]
     df['bb_lower'] = bb[bb_lower_col]
 
-    # Stochastic RSI
     stochrsi = df.ta.stochrsi(length=14, rsi_length=7, k=3, d=3)
     stoch_k_col = [c for c in stochrsi.columns if c.startswith('STOCHRSIk')][0]
     stoch_d_col = [c for c in stochrsi.columns if c.startswith('STOCHRSId')][0]
@@ -658,100 +818,4 @@ def fetch_ohlcv(symbol: str, timeframe: str, limit: int = 300) -> pd.DataFrame:
 
 def main():
     print("=" * 50)
-    print("Crypto Scalper Bot — A(5m) + B(3m) [OKX]")
-    print(f"Time: {datetime.datetime.utcnow().isoformat()} UTC")
-    print("=" * 50)
-
-    api_key = os.environ.get("COINGLASS_API_KEY", "")
-    if not api_key:
-        print("[ERROR] COINGLASS_API_KEY not set")
-        return
-
-    stats = SignalStats()
-    print(f"[Stats] Total signals so far: {stats.data['total_signals']}")
-
-    cg = CoinGlassClient(cache_ttl=90)
-
-    liq_stream = QuickLiquidationStream(api_key)
-    liq_stream.start()
-    print(f"[WS] Collecting liquidations for {WS_WAIT_SECONDS}s...")
-    time.sleep(WS_WAIT_SECONDS)
-
-    new_signals = 0
-
-    for symbol in SYMBOLS:
-        try:
-            # ===== A-СИГНАЛ (5m) =====
-            print(f"\n--- {symbol} [A-SIGNAL 5m] ---")
-            df_a = fetch_ohlcv(symbol, TIMEFRAME_A, limit=CANDLES_LIMIT)
-            df_a = calculate_indicators(df_a)
-
-            signal_a = generate_signal_a(df_a)
-            if signal_a:
-                patterns = detect_candlestick_patterns(df_a)
-                swings = find_swings_atr(df_a, SWING_ATR_MULT, SWING_MIN_BARS)
-                hs = detect_head_and_shoulders(swings)
-                dt = detect_double_top_bottom(swings)
-
-                confirmations = []
-                if signal_a['signal'] == 'LONG' and patterns.get('engulfing_bullish'):
-                    confirmations.append('бычье поглощение')
-                if signal_a['signal'] == 'SHORT' and patterns.get('engulfing_bearish'):
-                    confirmations.append('медвежье поглощение')
-                if hs and hs['signal'] == signal_a['signal']:
-                    confirmations.append(hs['pattern'])
-                if dt and dt['signal'] == signal_a['signal']:
-                    confirmations.append(dt['pattern'])
-
-                pressure = liq_stream.get_pressure(window_seconds=300)
-                if signal_a['signal'] == 'LONG' and pressure['long_liquidated_usd'] > 1_000_000:
-                    confirmations.append(f"Long squeeze ${pressure['long_liquidated_usd']/1e6:.1f}M")
-                if signal_a['signal'] == 'SHORT' and pressure['short_liquidated_usd'] > 1_000_000:
-                    confirmations.append(f"Short squeeze ${pressure['short_liquidated_usd']/1e6:.1f}M")
-
-                signal_a = apply_coinglass_filter(signal_a, cg, symbol)
-                if confirmations:
-                    signal_a['confirmations'] = signal_a.get('confirmations', []) + confirmations
-
-                print(f"  A: {signal_a['signal']} @ {signal_a['entry']:.4f}")
-                send_signal(signal_a, symbol)
-                stats.add_signal(signal_a, symbol)
-                new_signals += 1
-            else:
-                print(f"  No A-signal")
-
-            # ===== B-СИГНАЛ (3m) =====
-            print(f"--- {symbol} [B-SIGNAL 3m] ---")
-            df_b = fetch_ohlcv(symbol, TIMEFRAME_B, limit=CANDLES_LIMIT)
-            signal_b = generate_signal_b(df_b)
-
-            if signal_b:
-                signal_b = apply_coinglass_filter(signal_b, cg, symbol)
-                print(f"  B: {signal_b['signal']} @ {signal_b['entry']:.4f}")
-                send_signal(signal_b, symbol)
-                stats.add_signal(signal_b, symbol)
-                new_signals += 1
-            else:
-                print(f"  No B-signal")
-
-        except Exception as e:
-            print(f"[ERROR] {symbol}: {e}")
-
-    liq_stream.stop()
-    stats.save()
-    print(f"\n[Stats] New signals this run: {new_signals}")
-
-    if stats.should_send_daily_report():
-        report = stats.build_daily_report()
-        if report:
-            print("[Report] Sending daily report...")
-            if _send_telegram_raw(report):
-                stats.mark_report_sent()
-                stats.save()
-                print("[Report] Sent successfully")
-
-    print("\nDone.")
-
-
-if __name__ == "__main__":
-    main()
+    print("C
