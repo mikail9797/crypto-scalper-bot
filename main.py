@@ -13,6 +13,8 @@ import ccxt
 import requests
 import websocket
 
+from patterns_advanced import analyze_advanced_patterns
+
 
 # ==================== КОНФИГУРАЦИЯ ====================
 
@@ -22,11 +24,11 @@ COINGLASS_HEADERS = {
     "CG-API-KEY": os.environ.get("COINGLASS_API_KEY", "")
 }
 
-SYMBOLS = [
-    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
-    "XRPUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT",
-    "LINKUSDT", "DOTUSDT"
-]
+TOP_N_SYMBOLS = 15
+MIN_VOLUME_USD = 50_000_000
+EXCLUDED_SYMBOLS = {
+    "USDCUSDT", "BUSDUSDT", "TUSDUSDT", "DAIUSDT", "FDUSDUSDT"
+}
 
 TIMEFRAME_A = "5m"
 TIMEFRAME_B = "3m"
@@ -38,10 +40,52 @@ WS_WAIT_SECONDS = 10
 STATS_FILE = Path("signal_stats.json")
 DAILY_REPORT_HOUR_UTC = 0
 
-# Через сколько часов считать сигнал «не сработавшим»
+TRADING_START_HOUR_UTC = 2
+TRADING_END_HOUR_UTC = 22
+
 SIGNAL_TIMEOUT_HOURS = 6
-# Минимальный возраст сигнала для проверки (часы)
 SIGNAL_MIN_AGE_HOURS = 1
+
+
+# ==================== ДИНАМИЧЕСКИЙ ОТБОР МОНЕТ ====================
+
+def get_top_symbols_by_volume(n: int = TOP_N_SYMBOLS) -> List[str]:
+    print(f"[Symbols] Fetching top-{n} symbols by volume from OKX...")
+    
+    try:
+        exchange = ccxt.okx({'enableRateLimit': True})
+        tickers = exchange.fetch_tickers()
+        
+        usdt_pairs = []
+        for symbol, ticker in tickers.items():
+            if not symbol.endswith('/USDT'):
+                continue
+            base = symbol.split('/')[0]
+            if f"{base}USDT" in EXCLUDED_SYMBOLS:
+                continue
+            volume = ticker.get('quoteVolume', 0) or 0
+            if volume < MIN_VOLUME_USD:
+                continue
+            usdt_pairs.append((symbol, volume))
+        
+        usdt_pairs.sort(key=lambda x: x[1], reverse=True)
+        symbols = [s.replace('/USDT', 'USDT') for s, _ in usdt_pairs[:n]]
+        
+        print(f"[Symbols] Selected {len(symbols)} symbols: {', '.join(symbols)}")
+        return symbols
+    
+    except Exception as e:
+        print(f"[Symbols] Error: {e}")
+        fallback = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+        print(f"[Symbols] Using fallback: {fallback}")
+        return fallback
+
+
+# ==================== ТОРГОВОЕ ОКНО ====================
+
+def is_trading_hours() -> bool:
+    now_utc = datetime.datetime.utcnow()
+    return TRADING_START_HOUR_UTC <= now_utc.hour <= TRADING_END_HOUR_UTC
 
 
 # ==================== СТАТИСТИКА ====================
@@ -65,6 +109,8 @@ class SignalStats:
             "b_signals": 0,
             "long_count": 0,
             "short_count": 0,
+            "strong_signals": 0,
+            "medium_signals": 0,
             "by_symbol": {},
             "by_day": {},
             "active_signals": [],
@@ -87,6 +133,7 @@ class SignalStats:
     def add_signal(self, signal: Dict, symbol: str):
         today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         sig_type = signal.get('type', 'A')
+        confidence = signal.get('confidence', 'MEDIUM')
         
         self.data["total_signals"] += 1
         
@@ -94,6 +141,11 @@ class SignalStats:
             self.data["a_signals"] = self.data.get("a_signals", 0) + 1
         else:
             self.data["b_signals"] = self.data.get("b_signals", 0) + 1
+        
+        if confidence == 'STRONG':
+            self.data["strong_signals"] = self.data.get("strong_signals", 0) + 1
+        elif confidence == 'MEDIUM':
+            self.data["medium_signals"] = self.data.get("medium_signals", 0) + 1
         
         if signal['signal'] == 'LONG':
             self.data["long_count"] += 1
@@ -119,7 +171,6 @@ class SignalStats:
             day["symbols"][symbol] = 0
         day["symbols"][symbol] += 1
         
-        # Сохраняем сигнал для последующей проверки TP/SL
         if "active_signals" not in self.data:
             self.data["active_signals"] = []
         
@@ -127,6 +178,7 @@ class SignalStats:
             "symbol": symbol,
             "signal": signal['signal'],
             "type": sig_type,
+            "confidence": confidence,
             "entry": signal['entry'],
             "stop_loss": signal['stop_loss'],
             "tp1": signal['tp1'],
@@ -168,20 +220,20 @@ class SignalStats:
                 day_data['symbols'].items(), 
                 key=lambda x: x[1], reverse=True
             )
-            for sym, cnt in sorted_symbols:
+            for sym, cnt in sorted_symbols[:10]:
                 text += f"  • {sym}: {cnt}\n"
         
         text += f"\n📈 <b>Всего за всё время:</b>\n"
         text += f"Сигналов: {self.data['total_signals']}\n"
         text += f"🚀 A: {self.data.get('a_signals', 0)} | ⚡ B: {self.data.get('b_signals', 0)}\n"
+        text += f"🔥 STRONG: {self.data.get('strong_signals', 0)} | ✅ MEDIUM: {self.data.get('medium_signals', 0)}\n"
         text += f"🟢 {self.data['long_count']} | 🔴 {self.data['short_count']}"
         
-        # Статистика TP/SL
         tp_stats = self.data.get("tp_stats", {})
         total_checked = sum(tp_stats.values())
         
         if total_checked > 0:
-            text += f"\n\n🎯 <b>Статистика TP/SL ({total_checked} проверено):</b>\n"
+            text += f"\n\n🎯 <b>Статистика TP/SL ({total_checked}):</b>\n"
             text += f"  TP1: {tp_stats.get('tp1_hit', 0)}\n"
             text += f"  TP2: {tp_stats.get('tp2_hit', 0)}\n"
             text += f"  TP3: {tp_stats.get('tp3_hit', 0)}\n"
@@ -206,10 +258,6 @@ class SignalStats:
 # ==================== ПРОВЕРКА TP/SL ====================
 
 def check_active_signals(stats: SignalStats):
-    """
-    Проверяет активные сигналы: достигли ли они TP или SL.
-    Вызывается при каждом запуске бота перед поиском новых сигналов.
-    """
     active = stats.data.get("active_signals", [])
     if not active:
         print("[Check] No active signals to check")
@@ -224,22 +272,18 @@ def check_active_signals(stats: SignalStats):
             signal_time = datetime.datetime.fromisoformat(sig["created_at"])
             hours_elapsed = (now - signal_time).total_seconds() / 3600
             
-            # Проверяем только сигналы старше SIGNAL_MIN_AGE_HOURS
             if hours_elapsed < SIGNAL_MIN_AGE_HOURS:
                 still_active.append(sig)
                 continue
             
-            # Загружаем свечи для проверки
             df = fetch_ohlcv(sig["symbol"], TIMEFRAME_A, limit=200)
             
-            entry = sig["entry"]
             sl = sig["stop_loss"]
             tp1 = sig["tp1"]
             tp2 = sig["tp2"]
             tp3 = sig["tp3"]
             direction = sig["signal"]
             
-            # Ограничиваем проверку свечами после сигнала
             df_after = df[df.index >= signal_time.replace(tzinfo=None)]
             
             if len(df_after) == 0:
@@ -247,23 +291,17 @@ def check_active_signals(stats: SignalStats):
                 continue
             
             if direction == "LONG":
-                # SL ниже входа — если low свечей ушёл ниже SL
                 if df_after["low"].min() <= sl:
                     sig["result"] = "SL"
-                    sig["hit_price"] = sl
                     stats.data["tp_stats"]["sl_hit"] += 1
-                # TP3 выше — если high ушёл выше TP3
                 elif df_after["high"].max() >= tp3:
                     sig["result"] = "TP3"
-                    sig["hit_price"] = tp3
                     stats.data["tp_stats"]["tp3_hit"] += 1
                 elif df_after["high"].max() >= tp2:
                     sig["result"] = "TP2"
-                    sig["hit_price"] = tp2
                     stats.data["tp_stats"]["tp2_hit"] += 1
                 elif df_after["high"].max() >= tp1:
                     sig["result"] = "TP1"
-                    sig["hit_price"] = tp1
                     stats.data["tp_stats"]["tp1_hit"] += 1
                 elif hours_elapsed > SIGNAL_TIMEOUT_HOURS:
                     sig["result"] = "NO_HIT"
@@ -271,24 +309,18 @@ def check_active_signals(stats: SignalStats):
                 else:
                     still_active.append(sig)
                     continue
-            else:  # SHORT
-                # SL выше входа — если high ушёл выше SL
+            else:
                 if df_after["high"].max() >= sl:
                     sig["result"] = "SL"
-                    sig["hit_price"] = sl
                     stats.data["tp_stats"]["sl_hit"] += 1
-                # TP3 ниже — если low ушёл ниже TP3
                 elif df_after["low"].min() <= tp3:
                     sig["result"] = "TP3"
-                    sig["hit_price"] = tp3
                     stats.data["tp_stats"]["tp3_hit"] += 1
                 elif df_after["low"].min() <= tp2:
                     sig["result"] = "TP2"
-                    sig["hit_price"] = tp2
                     stats.data["tp_stats"]["tp2_hit"] += 1
                 elif df_after["low"].min() <= tp1:
                     sig["result"] = "TP1"
-                    sig["hit_price"] = tp1
                     stats.data["tp_stats"]["tp1_hit"] += 1
                 elif hours_elapsed > SIGNAL_TIMEOUT_HOURS:
                     sig["result"] = "NO_HIT"
@@ -301,7 +333,6 @@ def check_active_signals(stats: SignalStats):
             sig["hours_to_result"] = round(hours_elapsed, 1)
             checked += 1
             
-            # Перемещаем в завершённые
             if "completed_signals" not in stats.data:
                 stats.data["completed_signals"] = []
             stats.data["completed_signals"].append(sig)
@@ -309,7 +340,7 @@ def check_active_signals(stats: SignalStats):
             print(f"  [Check] {sig['symbol']} {sig['signal']}: {sig['result']}")
             
         except Exception as e:
-            print(f"  [Check] Error for {sig.get('symbol', '?')}: {e}")
+            print(f"  [Check] Error: {e}")
             still_active.append(sig)
     
     stats.data["active_signals"] = still_active
@@ -383,7 +414,6 @@ class QuickLiquidationStream:
         self._lock = threading.Lock()
         self.should_run = True
         self.ws = None
-        self.connected = False
 
     def _on_message(self, ws, message):
         try:
@@ -403,17 +433,16 @@ class QuickLiquidationStream:
             pass
 
     def _on_open(self, ws):
-        self.connected = True
         ws.send(json.dumps({
             "method": "subscribe",
             "channels": ["liquidationOrders"]
         }))
 
     def _on_error(self, ws, error):
-        self.connected = False
+        pass
 
     def _on_close(self, ws, code, msg):
-        self.connected = False
+        pass
 
     def _run(self):
         try:
@@ -685,7 +714,8 @@ def generate_signal_b(df_3m: pd.DataFrame) -> Optional[Dict]:
             "tp2": float(last['close'] + last['atr'] * 1.5),
             "tp3": float(last['close'] + last['atr'] * 2.2),
             "atr": float(last['atr']),
-            "recommended_size": "30-50%"
+            "recommended_size": "30-50%",
+            "confidence": "MEDIUM"
         }
 
     ha_flip_bear = (prev['ha_direction'] == 1 and last['ha_direction'] == -1)
@@ -707,7 +737,8 @@ def generate_signal_b(df_3m: pd.DataFrame) -> Optional[Dict]:
             "tp2": float(last['close'] - last['atr'] * 1.5),
             "tp3": float(last['close'] - last['atr'] * 2.2),
             "atr": float(last['atr']),
-            "recommended_size": "30-50%"
+            "recommended_size": "30-50%",
+            "confidence": "MEDIUM"
         }
 
     return None
@@ -746,8 +777,9 @@ def apply_coinglass_filter(signal: Dict, cg: CoinGlassClient, symbol: str) -> Di
         if signal['signal'] == 'SHORT' and ratio < 0.5:
             warnings.append(f"L/S {ratio:.2f}")
 
+    existing = signal.get('confirmations', [])
+    signal['confirmations'] = existing + confirmations
     signal['warnings'] = warnings
-    signal['confirmations'] = confirmations
     return signal
 
 
@@ -776,12 +808,17 @@ def send_signal(signal: Dict, symbol: str):
         return
 
     sig_type = signal.get('type', 'A')
+    confidence = signal.get('confidence', 'MEDIUM')
+    
+    conf_icon = {'STRONG': '🔥', 'MEDIUM': '✅', 'WEAK': '⚪'}.get(confidence, '')
 
     if sig_type == 'B':
         header = f"⚡ <b>B-SIGNAL {signal['signal']} {symbol}</b> [3m]\n"
         header += f"<i>Рекомендуемый размер: {signal.get('recommended_size', '30-50%')}</i>\n"
     else:
         header = f"🚀 <b>A-SIGNAL {signal['signal']} {symbol}</b> [5m]\n"
+        if confidence == 'STRONG':
+            header += f"{conf_icon} <b>Уверенность: STRONG</b>\n"
 
     text = header + "\n"
     text += f"💰 Вход: {signal['entry']:.4f}\n"
@@ -797,7 +834,7 @@ def send_signal(signal: Dict, symbol: str):
         text += "\n⚠️ " + ", ".join(signal['warnings'])
 
     if _send_telegram_raw(text):
-        print(f"  [Telegram] {sig_type}-signal sent for {symbol}")
+        print(f"  [Telegram] {sig_type}-signal ({confidence}) sent for {symbol}")
 
 
 # ==================== БИРЖА (OKX) ====================
@@ -831,8 +868,27 @@ def main():
     print(f"[Stats] Total signals so far: {stats.data['total_signals']}")
     print(f"[Stats] Active signals: {len(stats.data.get('active_signals', []))}")
 
-    # Проверяем активные сигналы ПЕРЕД поиском новых
     check_active_signals(stats)
+    stats.save()
+
+    in_trading_hours = is_trading_hours()
+    print(f"[Time] Trading hours: {in_trading_hours} (02:00-22:00 UTC)")
+
+    if not in_trading_hours:
+        print("[Time] Outside trading hours.")
+        if stats.should_send_daily_report():
+            report = stats.build_daily_report()
+            if report:
+                if _send_telegram_raw(report):
+                    stats.mark_report_sent()
+                    stats.save()
+        print("\nDone.")
+        return
+
+    symbols = get_top_symbols_by_volume(TOP_N_SYMBOLS)
+    if not symbols:
+        print("[ERROR] No symbols to monitor")
+        return
 
     cg = CoinGlassClient(cache_ttl=90)
 
@@ -843,7 +899,7 @@ def main():
 
     new_signals = 0
 
-    for symbol in SYMBOLS:
+    for symbol in symbols:
         try:
             # ===== A-СИГНАЛ (5m) =====
             print(f"\n--- {symbol} [A-SIGNAL 5m] ---")
@@ -867,20 +923,39 @@ def main():
                 if dt and dt['signal'] == signal_a['signal']:
                     confirmations.append(dt['pattern'])
 
-                pressure = liq_stream.get_pressure(window_seconds=300)
-                if signal_a['signal'] == 'LONG' and pressure['long_liquidated_usd'] > 1_000_000:
-                    confirmations.append(f"Long squeeze ${pressure['long_liquidated_usd']/1e6:.1f}M")
-                if signal_a['signal'] == 'SHORT' and pressure['short_liquidated_usd'] > 1_000_000:
-                    confirmations.append(f"Short squeeze ${pressure['short_liquidated_usd']/1e6:.1f}M")
+                advanced = analyze_advanced_patterns(df_a, signal_a['signal'])
+                confirmations.extend(advanced['confirmations'])
+                signal_a['confidence'] = advanced['confidence']
+                signal_a['confirmations'] = confirmations
 
-                signal_a = apply_coinglass_filter(signal_a, cg, symbol)
-                if confirmations:
-                    signal_a['confirmations'] = signal_a.get('confirmations', []) + confirmations
+                if advanced['confidence'] == 'STRONG':
+                    atr = signal_a['atr']
+                    entry = signal_a['entry']
+                    if signal_a['signal'] == 'LONG':
+                        signal_a['tp1'] = entry + atr * 1.5
+                        signal_a['tp2'] = entry + atr * 3.0
+                        signal_a['tp3'] = entry + atr * 5.0
+                    else:
+                        signal_a['tp1'] = entry - atr * 1.5
+                        signal_a['tp2'] = entry - atr * 3.0
+                        signal_a['tp3'] = entry - atr * 5.0
+                elif advanced['confidence'] == 'WEAK':
+                    print(f"  [Skip] WEAK signal")
+                    signal_a = None
 
-                print(f"  A: {signal_a['signal']} @ {signal_a['entry']:.4f}")
-                send_signal(signal_a, symbol)
-                stats.add_signal(signal_a, symbol)
-                new_signals += 1
+                if signal_a:
+                    pressure = liq_stream.get_pressure(window_seconds=300)
+                    if signal_a['signal'] == 'LONG' and pressure['long_liquidated_usd'] > 1_000_000:
+                        signal_a['confirmations'].append(f"Long squeeze ${pressure['long_liquidated_usd']/1e6:.1f}M")
+                    if signal_a['signal'] == 'SHORT' and pressure['short_liquidated_usd'] > 1_000_000:
+                        signal_a['confirmations'].append(f"Short squeeze ${pressure['short_liquidated_usd']/1e6:.1f}M")
+
+                    signal_a = apply_coinglass_filter(signal_a, cg, symbol)
+
+                    print(f"  A: {signal_a['signal']} ({signal_a['confidence']}) @ {signal_a['entry']:.4f}")
+                    send_signal(signal_a, symbol)
+                    stats.add_signal(signal_a, symbol)
+                    new_signals += 1
             else:
                 print(f"  No A-signal")
 
@@ -908,11 +983,9 @@ def main():
     if stats.should_send_daily_report():
         report = stats.build_daily_report()
         if report:
-            print("[Report] Sending daily report...")
             if _send_telegram_raw(report):
                 stats.mark_report_sent()
                 stats.save()
-                print("[Report] Sent successfully")
 
     print("\nDone.")
 
