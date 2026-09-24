@@ -1,8 +1,8 @@
 {
-  "total_signals": 19,
-  "a_signals": 4,
+  "total_signals": 22,
+  "a_signals": 7,
   "b_signals": 15,
-  "long_count": 9,
+  "long_count": 12,
   "short_count": 10,
   "by_symbol": {
     "ETHUSDT": {
@@ -18,7 +18,7 @@
       "SHORT": 1
     },
     "SOLUSDT": {
-      "LONG": 0,
+      "LONG": 1,
       "SHORT": 1
     },
     "XRPUSDT": {
@@ -26,7 +26,7 @@
       "SHORT": 1
     },
     "ZECUSDT": {
-      "LONG": 1,
+      "LONG": 2,
       "SHORT": 1
     },
     "NEARUSDT": {
@@ -39,6 +39,10 @@
     },
     "LTCUSDT": {
       "LONG": 2,
+      "SHORT": 0
+    },
+    "BTCUSDT": {
+      "LONG": 1,
       "SHORT": 0
     }
   },
@@ -57,19 +61,21 @@
       }
     },
     "2026-09-24": {
-      "total": 13,
-      "A": 0,
+      "total": 16,
+      "A": 3,
       "B": 13,
-      "LONG": 7,
+      "LONG": 10,
       "SHORT": 6,
       "symbols": {
         "ETHUSDT": 2,
         "XRPUSDT": 2,
-        "ZECUSDT": 2,
+        "ZECUSDT": 3,
         "NEARUSDT": 2,
         "HYPEUSDT": 1,
         "DOGEUSDT": 2,
-        "LTCUSDT": 2
+        "LTCUSDT": 2,
+        "BTCUSDT": 1,
+        "SOLUSDT": 1
       }
     }
   },
@@ -313,7 +319,49 @@
       "atr": 0.006240800053636735,
       "created_at": "2026-09-24T16:25:00.775179",
       "result": "SL"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "signal": "LONG",
+      "type": "A",
+      "confidence": "MEDIUM",
+      "entry": 84273.2,
+      "stop_loss": 84072.86180043002,
+      "tp1": 84406.75879971331,
+      "tp2": 84540.31759942663,
+      "tp3": 84673.87639913995,
+      "atr": 133.5587997133155,
+      "created_at": "2026-09-24T20:23:10.532711",
+      "result": null
+    },
+    {
+      "symbol": "SOLUSDT",
+      "signal": "LONG",
+      "type": "A",
+      "confidence": "MEDIUM",
+      "entry": 116.93,
+      "stop_loss": 116.53462557050844,
+      "tp1": 117.19358295299439,
+      "tp2": 117.45716590598877,
+      "tp3": 117.72074885898314,
+      "atr": 0.26358295299438017,
+      "created_at": "2026-09-24T20:23:20.527806",
+      "result": null
+    },
+    {
+      "symbol": "ZECUSDT",
+      "signal": "LONG",
+      "type": "A",
+      "confidence": "MEDIUM",
+      "entry": 1549.28,
+      "stop_loss": 1536.382867000068,
+      "tp1": 1557.8780886666211,
+      "tp2": 1566.4761773332425,
+      "tp3": 1575.0742659998637,
+      "atr": 8.598088666621235,
+      "created_at": "2026-09-24T20:23:30.370610",
+      "result": null
     }
   ],
-  "medium_signals": 12
+  "medium_signals": 15
 }
