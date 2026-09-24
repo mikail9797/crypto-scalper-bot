@@ -1,9 +1,9 @@
 {
-  "total_signals": 9,
+  "total_signals": 11,
   "a_signals": 4,
-  "b_signals": 5,
+  "b_signals": 7,
   "long_count": 2,
-  "short_count": 7,
+  "short_count": 9,
   "by_symbol": {
     "ETHUSDT": {
       "LONG": 2,
@@ -28,6 +28,14 @@
     "ZECUSDT": {
       "LONG": 0,
       "SHORT": 1
+    },
+    "NEARUSDT": {
+      "LONG": 0,
+      "SHORT": 1
+    },
+    "HYPEUSDT": {
+      "LONG": 0,
+      "SHORT": 1
     }
   },
   "by_day": {
@@ -45,15 +53,17 @@
       }
     },
     "2026-09-24": {
-      "total": 3,
+      "total": 5,
       "A": 0,
-      "B": 3,
+      "B": 5,
       "LONG": 0,
-      "SHORT": 3,
+      "SHORT": 5,
       "symbols": {
         "ETHUSDT": 1,
         "XRPUSDT": 1,
-        "ZECUSDT": 1
+        "ZECUSDT": 1,
+        "NEARUSDT": 1,
+        "HYPEUSDT": 1
       }
     }
   },
@@ -157,7 +167,35 @@
       "atr": 6.449573324834926,
       "created_at": "2026-09-24T09:10:49.606753",
       "result": null
+    },
+    {
+      "symbol": "NEARUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 4.192,
+      "stop_loss": 4.227075834602741,
+      "tp1": 4.16861611026484,
+      "tp2": 4.148155206746575,
+      "tp3": 4.127694303228309,
+      "atr": 0.029229862168950488,
+      "created_at": "2026-09-24T09:56:40.825274",
+      "result": null
+    },
+    {
+      "symbol": "HYPEUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 90.546,
+      "stop_loss": 90.94087393777542,
+      "tp1": 90.28275070814973,
+      "tp2": 90.05240757778074,
+      "tp3": 89.82206444741175,
+      "atr": 0.3290616148128452,
+      "created_at": "2026-09-24T09:56:50.824312",
+      "result": null
     }
   ],
-  "medium_signals": 2
+  "medium_signals": 4
 }
