@@ -1,8 +1,8 @@
 {
-  "total_signals": 26,
+  "total_signals": 27,
   "a_signals": 7,
-  "b_signals": 19,
-  "long_count": 14,
+  "b_signals": 20,
+  "long_count": 15,
   "short_count": 12,
   "by_symbol": {
     "ETHUSDT": {
@@ -44,6 +44,10 @@
     "BTCUSDT": {
       "LONG": 1,
       "SHORT": 1
+    },
+    "ONDOUSDT": {
+      "LONG": 1,
+      "SHORT": 0
     }
   },
   "by_day": {
@@ -79,15 +83,16 @@
       }
     },
     "2026-09-25": {
-      "total": 3,
+      "total": 4,
       "A": 0,
-      "B": 3,
-      "LONG": 1,
+      "B": 4,
+      "LONG": 2,
       "SHORT": 2,
       "symbols": {
         "DOGEUSDT": 1,
         "BTCUSDT": 1,
-        "ZECUSDT": 1
+        "ZECUSDT": 1,
+        "ONDOUSDT": 1
       }
     }
   },
@@ -429,7 +434,21 @@
       "atr": 4.921176447871487,
       "created_at": "2026-09-25T03:55:34.871864",
       "result": "SL"
+    },
+    {
+      "symbol": "ONDOUSDT",
+      "signal": "LONG",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 0.5767,
+      "stop_loss": 0.5712950011150552,
+      "tp1": 0.5803033325899632,
+      "tp2": 0.5834562486061811,
+      "tp3": 0.5866091646223989,
+      "atr": 0.00450416573745404,
+      "created_at": "2026-09-25T08:17:50.639963",
+      "result": null
     }
   ],
-  "medium_signals": 19
+  "medium_signals": 20
 }
