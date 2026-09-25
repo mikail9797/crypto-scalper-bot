@@ -79,7 +79,7 @@
       }
     }
   },
-  "last_report_date": "2026-09-24",
+  "last_report_date": "2026-09-25",
   "started_at": "2026-09-22T14:18:10.775457",
   "active_signals": [
     {
@@ -332,7 +332,7 @@
       "tp3": 84673.87639913995,
       "atr": 133.5587997133155,
       "created_at": "2026-09-24T20:23:10.532711",
-      "result": "TP1"
+      "result": "SL"
     },
     {
       "symbol": "SOLUSDT",
@@ -346,7 +346,7 @@
       "tp3": 117.72074885898314,
       "atr": 0.26358295299438017,
       "created_at": "2026-09-24T20:23:20.527806",
-      "result": "TP1"
+      "result": "SL"
     },
     {
       "symbol": "ZECUSDT",
