@@ -71,13 +71,13 @@ def get_top_symbols_by_volume(n: int = TOP_N_SYMBOLS) -> List[str]:
         usdt_pairs.sort(key=lambda x: x[1], reverse=True)
         symbols = [s.replace('/USDT', 'USDT') for s, _ in usdt_pairs[:n]]
         
-        print(f"[Symbols] Selected {len(symbols)} symbols: {', '.join(symbols)}")
+        print(f"[Symbols] Selected {len(symbols)}: {', '.join(symbols)}")
         return symbols
     
     except Exception as e:
         print(f"[Symbols] Error: {e}")
         fallback = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
-        print(f"[Symbols] Using fallback: {fallback}")
+        print(f"[Symbols] Fallback: {fallback}")
         return fallback
 
 
@@ -189,6 +189,48 @@ class SignalStats:
             "result": None
         })
     
+    def calculate_win_rate(self, days: int = 30) -> Dict:
+        """
+        Рассчитывает Win Rate за последние N дней.
+        Победа = TP1/TP2/TP3, Поражение = SL, NO_HIT не считается.
+        """
+        cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+        
+        completed = [
+            s for s in self.data.get("completed_signals", [])
+            if datetime.datetime.fromisoformat(s["checked_at"]) >= cutoff
+        ]
+        
+        if not completed:
+            return {
+                "win_rate": None, "total": 0,
+                "wins": 0, "losses": 0, "no_hit": 0
+            }
+        
+        wins = 0
+        losses = 0
+        no_hit = 0
+        
+        for sig in completed:
+            result = sig.get("result")
+            if result in ("TP1", "TP2", "TP3"):
+                wins += 1
+            elif result == "SL":
+                losses += 1
+            elif result == "NO_HIT":
+                no_hit += 1
+        
+        total = wins + losses
+        win_rate = (wins / total * 100) if total > 0 else 0
+        
+        return {
+            "win_rate": round(win_rate, 1),
+            "total": total,
+            "wins": wins,
+            "losses": losses,
+            "no_hit": no_hit
+        }
+    
     def should_send_daily_report(self) -> bool:
         now = datetime.datetime.utcnow()
         today = now.strftime("%Y-%m-%d")
@@ -229,6 +271,7 @@ class SignalStats:
         text += f"🔥 STRONG: {self.data.get('strong_signals', 0)} | ✅ MEDIUM: {self.data.get('medium_signals', 0)}\n"
         text += f"🟢 {self.data['long_count']} | 🔴 {self.data['short_count']}"
         
+        # Статистика TP/SL
         tp_stats = self.data.get("tp_stats", {})
         total_checked = sum(tp_stats.values())
         
@@ -241,12 +284,35 @@ class SignalStats:
             
             if tp_stats.get('no_hit', 0) > 0:
                 text += f"  Без движения: {tp_stats['no_hit']}\n"
+        
+        # Win Rate за 1 / 7 / 30 дней
+        wr_1d = self.calculate_win_rate(days=1)
+        wr_7d = self.calculate_win_rate(days=7)
+        wr_30d = self.calculate_win_rate(days=30)
+        
+        if wr_30d["total"] > 0 or wr_7d["total"] > 0 or wr_1d["total"] > 0:
+            text += f"\n📈 <b>Win Rate:</b>\n"
             
-            wins = (tp_stats.get('tp1_hit', 0) + 
-                    tp_stats.get('tp2_hit', 0) + 
-                    tp_stats.get('tp3_hit', 0))
-            win_rate = wins / total_checked * 100
-            text += f"\n  <b>Win rate: {win_rate:.1f}%</b>"
+            if wr_1d["total"] > 0:
+                text += f"  • 1 день:  <b>{wr_1d['win_rate']}%</b> "
+                text += f"({wr_1d['wins']}✅ / {wr_1d['losses']}❌)\n"
+            else:
+                text += f"  • 1 день:  нет данных\n"
+            
+            if wr_7d["total"] > 0:
+                text += f"  • 7 дней:  <b>{wr_7d['win_rate']}%</b> "
+                text += f"({wr_7d['wins']}✅ / {wr_7d['losses']}❌)\n"
+            else:
+                text += f"  • 7 дней:  нет данных\n"
+            
+            if wr_30d["total"] > 0:
+                text += f"  • 30 дней: <b>{wr_30d['win_rate']}%</b> "
+                text += f"({wr_30d['wins']}✅ / {wr_30d['losses']}❌)\n"
+            else:
+                text += f"  • 30 дней: нет данных\n"
+            
+            if wr_30d.get('no_hit', 0) > 0:
+                text += f"\n  ⏸ Без движения: {wr_30d['no_hit']}"
         
         return text
     
