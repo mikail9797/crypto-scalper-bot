@@ -1,9 +1,9 @@
 {
-  "total_signals": 65,
-  "a_signals": 10,
+  "total_signals": 66,
+  "a_signals": 11,
   "b_signals": 55,
   "long_count": 28,
-  "short_count": 37,
+  "short_count": 38,
   "by_symbol": {
     "ETHUSDT": {
       "LONG": 3,
@@ -27,7 +27,7 @@
     },
     "ZECUSDT": {
       "LONG": 6,
-      "SHORT": 8
+      "SHORT": 9
     },
     "NEARUSDT": {
       "LONG": 1,
@@ -129,16 +129,16 @@
       }
     },
     "2026-09-28": {
-      "total": 9,
-      "A": 1,
+      "total": 10,
+      "A": 2,
       "B": 8,
       "LONG": 2,
-      "SHORT": 7,
+      "SHORT": 8,
       "symbols": {
         "BTCUSDT": 4,
         "SOLUSDT": 3,
         "XRPUSDT": 1,
-        "ZECUSDT": 1
+        "ZECUSDT": 2
       }
     }
   },
@@ -1026,7 +1026,21 @@
       "atr": 151.58828934263946,
       "created_at": "2026-09-28T16:21:02.217270",
       "result": null
+    },
+    {
+      "symbol": "ZECUSDT",
+      "signal": "SHORT",
+      "type": "A",
+      "confidence": "MEDIUM",
+      "entry": 1539.13,
+      "stop_loss": 1554.9021661558477,
+      "tp1": 1528.6152225627684,
+      "tp2": 1518.1004451255367,
+      "tp3": 1507.5856676883052,
+      "atr": 10.514777437231672,
+      "created_at": "2026-09-28T16:36:51.125312",
+      "result": null
     }
   ],
-  "medium_signals": 58
+  "medium_signals": 59
 }
