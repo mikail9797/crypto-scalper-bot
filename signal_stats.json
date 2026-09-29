@@ -1,8 +1,8 @@
 {
-  "total_signals": 88,
+  "total_signals": 89,
   "a_signals": 12,
-  "b_signals": 76,
-  "long_count": 39,
+  "b_signals": 77,
+  "long_count": 40,
   "short_count": 49,
   "by_symbol": {
     "ETHUSDT": {
@@ -54,6 +54,10 @@
       "SHORT": 1
     },
     "HBARUSDT": {
+      "LONG": 1,
+      "SHORT": 0
+    },
+    "XDPUSDT": {
       "LONG": 1,
       "SHORT": 0
     }
@@ -147,10 +151,10 @@
       }
     },
     "2026-09-29": {
-      "total": 18,
+      "total": 19,
       "A": 1,
-      "B": 17,
-      "LONG": 8,
+      "B": 18,
+      "LONG": 9,
       "SHORT": 10,
       "symbols": {
         "NEARUSDT": 2,
@@ -160,7 +164,8 @@
         "ZECUSDT": 3,
         "XRPUSDT": 3,
         "BTCUSDT": 1,
-        "SOLUSDT": 2
+        "SOLUSDT": 2,
+        "XDPUSDT": 1
       }
     }
   },
@@ -1370,7 +1375,21 @@
       "atr": 2.869306804254903,
       "created_at": "2026-09-29T20:00:17.848180",
       "result": "SL"
+    },
+    {
+      "symbol": "XDPUSDT",
+      "signal": "LONG",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 0.024395,
+      "stop_loss": 0.024212498109900615,
+      "tp1": 0.024516667926732922,
+      "tp2": 0.02462312736262423,
+      "tp3": 0.024729586798515536,
+      "atr": 0.00015208490841615296,
+      "created_at": "2026-09-29T21:39:33.387636",
+      "result": null
     }
   ],
-  "medium_signals": 81
+  "medium_signals": 82
 }
