@@ -1,13 +1,13 @@
 {
-  "total_signals": 81,
+  "total_signals": 82,
   "a_signals": 12,
-  "b_signals": 69,
+  "b_signals": 70,
   "long_count": 39,
-  "short_count": 42,
+  "short_count": 43,
   "by_symbol": {
     "ETHUSDT": {
       "LONG": 5,
-      "SHORT": 3
+      "SHORT": 4
     },
     "DOGEUSDT": {
       "LONG": 7,
@@ -147,14 +147,14 @@
       }
     },
     "2026-09-29": {
-      "total": 11,
+      "total": 12,
       "A": 1,
-      "B": 10,
+      "B": 11,
       "LONG": 8,
-      "SHORT": 3,
+      "SHORT": 4,
       "symbols": {
         "NEARUSDT": 2,
-        "ETHUSDT": 2,
+        "ETHUSDT": 3,
         "HBARUSDT": 1,
         "DOGEUSDT": 2,
         "ZECUSDT": 2,
@@ -1270,7 +1270,21 @@
       "atr": 0.005753653606298202,
       "created_at": "2026-09-29T15:54:06.305138",
       "result": null
+    },
+    {
+      "symbol": "ETHUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 2672.85,
+      "stop_loss": 2680.116308305675,
+      "tp1": 2668.0057944628834,
+      "tp2": 2663.7671146179064,
+      "tp3": 2659.5284347729294,
+      "atr": 6.0552569213957605,
+      "created_at": "2026-09-29T16:04:23.300723",
+      "result": null
     }
   ],
-  "medium_signals": 74
+  "medium_signals": 75
 }
