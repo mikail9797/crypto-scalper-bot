@@ -1,17 +1,17 @@
 {
-  "total_signals": 99,
+  "total_signals": 102,
   "a_signals": 12,
-  "b_signals": 87,
+  "b_signals": 90,
   "long_count": 43,
-  "short_count": 56,
+  "short_count": 59,
   "by_symbol": {
     "ETHUSDT": {
       "LONG": 7,
-      "SHORT": 7
+      "SHORT": 8
     },
     "DOGEUSDT": {
       "LONG": 8,
-      "SHORT": 4
+      "SHORT": 5
     },
     "LINKUSDT": {
       "LONG": 0,
@@ -43,7 +43,7 @@
     },
     "BTCUSDT": {
       "LONG": 4,
-      "SHORT": 6
+      "SHORT": 7
     },
     "ONDOUSDT": {
       "LONG": 1,
@@ -185,14 +185,16 @@
       }
     },
     "2026-10-01": {
-      "total": 2,
+      "total": 5,
       "A": 0,
-      "B": 2,
+      "B": 5,
       "LONG": 1,
-      "SHORT": 1,
+      "SHORT": 4,
       "symbols": {
-        "DOGEUSDT": 1,
-        "CTUSDT": 1
+        "DOGEUSDT": 2,
+        "CTUSDT": 1,
+        "BTCUSDT": 1,
+        "ETHUSDT": 1
       }
     }
   },
@@ -1556,7 +1558,49 @@
       "atr": 0.0059769058901404945,
       "created_at": "2026-10-01T07:26:44.903113",
       "result": null
+    },
+    {
+      "symbol": "BTCUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 83436.9,
+      "stop_loss": 83577.34565662831,
+      "tp1": 83343.26956224778,
+      "tp2": 83261.3429292146,
+      "tp3": 83179.41629618141,
+      "atr": 117.03804719026412,
+      "created_at": "2026-10-01T08:02:02.324080",
+      "result": null
+    },
+    {
+      "symbol": "ETHUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 2677.01,
+      "stop_loss": 2683.0050088292137,
+      "tp1": 2673.0133274471914,
+      "tp2": 2669.5162389634834,
+      "tp3": 2666.0191504797754,
+      "atr": 4.995840691011203,
+      "created_at": "2026-10-01T08:02:08.672924",
+      "result": null
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 0.09424,
+      "stop_loss": 0.09453660012346755,
+      "tp1": 0.09404226658435497,
+      "tp2": 0.09386924984566557,
+      "tp3": 0.09369623310697615,
+      "atr": 0.0002471667695562926,
+      "created_at": "2026-10-01T08:02:29.692837",
+      "result": null
     }
   ],
-  "medium_signals": 92
+  "medium_signals": 95
 }
