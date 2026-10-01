@@ -13,7 +13,12 @@ import ccxt
 import requests
 import websocket
 
-from patterns_advanced import analyze_advanced_patterns
+from patterns_advanced import (
+    analyze_advanced_patterns,
+    detect_liquidity_sweep,
+    detect_break_of_structure,
+    check_htf_bias
+)
 
 
 # ==================== КОНФИГУРАЦИЯ ====================
@@ -32,6 +37,9 @@ EXCLUDED_SYMBOLS = {
 
 TIMEFRAME_A = "5m"
 TIMEFRAME_B = "3m"
+TIMEFRAME_HTF = "1h"
+HTF_EMA_PERIOD = 100
+
 SWING_ATR_MULT = 1.5
 SWING_MIN_BARS = 3
 CANDLES_LIMIT = 300
@@ -46,7 +54,6 @@ TRADING_END_HOUR_UTC = 22
 SIGNAL_TIMEOUT_HOURS = 6
 SIGNAL_MIN_AGE_HOURS = 1
 
-# Пороги для блокировки
 FUNDING_BLOCK_LONG = 0.003
 FUNDING_BLOCK_SHORT = -0.003
 LS_BLOCK_LONG = 3.0
@@ -118,6 +125,7 @@ class SignalStats:
             "strong_signals": 0,
             "medium_signals": 0,
             "blocked_signals": 0,
+            "smc_blocked": 0,
             "by_symbol": {},
             "by_day": {},
             "active_signals": [],
@@ -196,10 +204,13 @@ class SignalStats:
             "result": None
         })
     
-    def add_blocked(self, symbol: str, reason: str):
+    def add_blocked(self, symbol: str, reason: str, smc: bool = False):
         today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         
         self.data["blocked_signals"] = self.data.get("blocked_signals", 0) + 1
+        
+        if smc:
+            self.data["smc_blocked"] = self.data.get("smc_blocked", 0) + 1
         
         if today not in self.data["by_day"]:
             self.data["by_day"][today] = {
@@ -221,10 +232,7 @@ class SignalStats:
         ]
         
         if not completed:
-            return {
-                "win_rate": None, "total": 0,
-                "wins": 0, "losses": 0, "no_hit": 0
-            }
+            return {"win_rate": None, "total": 0, "wins": 0, "losses": 0, "no_hit": 0}
         
         wins = 0
         losses = 0
@@ -278,16 +286,14 @@ class SignalStats:
         
         if day_data.get('symbols'):
             text += "<b>По монетам:</b>\n"
-            sorted_symbols = sorted(
-                day_data['symbols'].items(), 
-                key=lambda x: x[1], reverse=True
-            )
+            sorted_symbols = sorted(day_data['symbols'].items(), key=lambda x: x[1], reverse=True)
             for sym, cnt in sorted_symbols[:10]:
                 text += f"  • {sym}: {cnt}\n"
         
         text += f"\n📈 <b>Всего за всё время:</b>\n"
         text += f"Сигналов: {self.data['total_signals']}\n"
         text += f"🚫 Заблокировано: {self.data.get('blocked_signals', 0)}\n"
+        text += f"🛡 SMC-блокировок: {self.data.get('smc_blocked', 0)}\n"
         text += f"🚀 A: {self.data.get('a_signals', 0)} | ⚡ B: {self.data.get('b_signals', 0)}\n"
         text += f"🔥 STRONG: {self.data.get('strong_signals', 0)} | ✅ MEDIUM: {self.data.get('medium_signals', 0)}\n"
         text += f"🟢 {self.data['long_count']} | 🔴 {self.data['short_count']}"
@@ -313,20 +319,17 @@ class SignalStats:
             text += f"\n📈 <b>Win Rate:</b>\n"
             
             if wr_1d["total"] > 0:
-                text += f"  • 1 день:  <b>{wr_1d['win_rate']}%</b> "
-                text += f"({wr_1d['wins']}✅ / {wr_1d['losses']}❌)\n"
+                text += f"  • 1 день:  <b>{wr_1d['win_rate']}%</b> ({wr_1d['wins']}✅ / {wr_1d['losses']}❌)\n"
             else:
                 text += f"  • 1 день:  нет данных\n"
             
             if wr_7d["total"] > 0:
-                text += f"  • 7 дней:  <b>{wr_7d['win_rate']}%</b> "
-                text += f"({wr_7d['wins']}✅ / {wr_7d['losses']}❌)\n"
+                text += f"  • 7 дней:  <b>{wr_7d['win_rate']}%</b> ({wr_7d['wins']}✅ / {wr_7d['losses']}❌)\n"
             else:
                 text += f"  • 7 дней:  нет данных\n"
             
             if wr_30d["total"] > 0:
-                text += f"  • 30 дней: <b>{wr_30d['win_rate']}%</b> "
-                text += f"({wr_30d['wins']}✅ / {wr_30d['losses']}❌)\n"
+                text += f"  • 30 дней: <b>{wr_30d['win_rate']}%</b> ({wr_30d['wins']}✅ / {wr_30d['losses']}❌)\n"
             else:
                 text += f"  • 30 дней: нет данных\n"
             
@@ -610,7 +613,7 @@ def apply_heikin_ashi(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ==================== ПАТТЕРНЫ ====================
+# ==================== ПАТТЕРНЫ (базовые) ====================
 
 def detect_candlestick_patterns(df: pd.DataFrame) -> Dict:
     patterns = {}
@@ -720,7 +723,7 @@ def detect_double_top_bottom(swings: List[Tuple]) -> Optional[Dict]:
     return None
 
 
-# ==================== A-СИГНАЛ (5m) ====================
+# ==================== A-СИГНАЛ (5m, TP 1.5/3/4.5 ATR) ====================
 
 def generate_signal_a(df: pd.DataFrame) -> Optional[Dict]:
     if len(df) < 210:
@@ -728,6 +731,11 @@ def generate_signal_a(df: pd.DataFrame) -> Optional[Dict]:
 
     last = df.iloc[-1]
     prev = df.iloc[-2]
+    
+    # Фильтр ATR: пропускаем, если волатильность слишком низкая
+    atr_pct = last['atr'] / last['close'] * 100
+    if atr_pct < 0.15:
+        return None
 
     if (last['st_direction'] == 1 and
         last['close'] > last['vwap'] and
@@ -738,9 +746,9 @@ def generate_signal_a(df: pd.DataFrame) -> Optional[Dict]:
             "signal": "LONG", "type": "A",
             "entry": float(last['close']),
             "stop_loss": float(last['close'] - last['atr'] * 1.5),
-            "tp1": float(last['close'] + last['atr'] * 1.0),
-            "tp2": float(last['close'] + last['atr'] * 2.0),
-            "tp3": float(last['close'] + last['atr'] * 3.0),
+            "tp1": float(last['close'] + last['atr'] * 1.5),
+            "tp2": float(last['close'] + last['atr'] * 3.0),
+            "tp3": float(last['close'] + last['atr'] * 4.5),
             "atr": float(last['atr'])
         }
 
@@ -753,16 +761,16 @@ def generate_signal_a(df: pd.DataFrame) -> Optional[Dict]:
             "signal": "SHORT", "type": "A",
             "entry": float(last['close']),
             "stop_loss": float(last['close'] + last['atr'] * 1.5),
-            "tp1": float(last['close'] - last['atr'] * 1.0),
-            "tp2": float(last['close'] - last['atr'] * 2.0),
-            "tp3": float(last['close'] - last['atr'] * 3.0),
+            "tp1": float(last['close'] - last['atr'] * 1.5),
+            "tp2": float(last['close'] - last['atr'] * 3.0),
+            "tp3": float(last['close'] - last['atr'] * 4.5),
             "atr": float(last['atr'])
         }
 
     return None
 
 
-# ==================== B-СИГНАЛ (3m) ====================
+# ==================== B-СИГНАЛ (3m, TP 1.2/2.5/4 ATR) ====================
 
 def generate_signal_b(df_3m: pd.DataFrame) -> Optional[Dict]:
     if len(df_3m) < 100:
@@ -795,9 +803,9 @@ def generate_signal_b(df_3m: pd.DataFrame) -> Optional[Dict]:
             "signal": "LONG", "type": "B",
             "entry": float(last['close']),
             "stop_loss": float(last['close'] - last['atr'] * 1.2),
-            "tp1": float(last['close'] + last['atr'] * 0.8),
-            "tp2": float(last['close'] + last['atr'] * 1.5),
-            "tp3": float(last['close'] + last['atr'] * 2.2),
+            "tp1": float(last['close'] + last['atr'] * 1.2),
+            "tp2": float(last['close'] + last['atr'] * 2.5),
+            "tp3": float(last['close'] + last['atr'] * 4.0),
             "atr": float(last['atr']),
             "recommended_size": "30-50%",
             "confidence": "MEDIUM"
@@ -818,9 +826,9 @@ def generate_signal_b(df_3m: pd.DataFrame) -> Optional[Dict]:
             "signal": "SHORT", "type": "B",
             "entry": float(last['close']),
             "stop_loss": float(last['close'] + last['atr'] * 1.2),
-            "tp1": float(last['close'] - last['atr'] * 0.8),
-            "tp2": float(last['close'] - last['atr'] * 1.5),
-            "tp3": float(last['close'] - last['atr'] * 2.2),
+            "tp1": float(last['close'] - last['atr'] * 1.2),
+            "tp2": float(last['close'] - last['atr'] * 2.5),
+            "tp3": float(last['close'] - last['atr'] * 4.0),
             "atr": float(last['atr']),
             "recommended_size": "30-50%",
             "confidence": "MEDIUM"
@@ -839,7 +847,6 @@ def apply_coinglass_filter(signal: Dict, cg: CoinGlassClient, symbol: str, df: p
     confirmations = []
     blocked = False
 
-    # ===== FUNDING RATE =====
     funding = cg.get_funding_rate(symbol)
     if funding and funding.get('data'):
         rate = float(funding['data'][0].get('close', 0))
@@ -855,7 +862,6 @@ def apply_coinglass_filter(signal: Dict, cg: CoinGlassClient, symbol: str, df: p
         elif signal['signal'] == 'SHORT' and rate < -0.001:
             warnings.append(f"Funding {rate*100:.3f}%")
 
-    # ===== OPEN INTEREST =====
     oi = cg.get_open_interest(symbol)
     if oi and oi.get('data') and len(oi['data']) >= 2:
         curr_oi = float(oi['data'][0].get('close', 0))
@@ -888,7 +894,6 @@ def apply_coinglass_filter(signal: Dict, cg: CoinGlassClient, symbol: str, df: p
                     warnings.append(f"OI падает {oi_change:+.2f}% — закрытие позиций")
                     blocked = True
 
-    # ===== LONG/SHORT RATIO =====
     ls = cg.get_long_short_ratio(symbol)
     if ls and ls.get('data'):
         ratio = float(ls['data'][0].get('longShortRatio', 1))
@@ -984,7 +989,7 @@ def fetch_ohlcv(symbol: str, timeframe: str, limit: int = 300) -> pd.DataFrame:
 
 def main():
     print("=" * 50)
-    print("Crypto Scalper Bot — A(5m) + B(3m) [OKX]")
+    print("Crypto Scalper Bot — SMC + HTF + OKX")
     print(f"Time: {datetime.datetime.utcnow().isoformat()} UTC")
     print("=" * 50)
 
@@ -1029,9 +1034,19 @@ def main():
 
     new_signals = 0
     blocked_count = 0
+    smc_blocked_count = 0
 
     for symbol in symbols:
         try:
+            # Загружаем 1H свечи один раз для обоих сигналов
+            try:
+                df_1h = fetch_ohlcv(symbol, TIMEFRAME_HTF, limit=250)
+                htf_available = True
+            except Exception as e:
+                print(f"  [HTF] Error loading 1H: {e}")
+                df_1h = None
+                htf_available = False
+
             # ===== A-СИГНАЛ (5m) =====
             print(f"\n--- {symbol} [A-SIGNAL 5m] ---")
             df_a = fetch_ohlcv(symbol, TIMEFRAME_A, limit=CANDLES_LIMIT)
@@ -1063,16 +1078,38 @@ def main():
                     atr = signal_a['atr']
                     entry = signal_a['entry']
                     if signal_a['signal'] == 'LONG':
-                        signal_a['tp1'] = entry + atr * 1.5
-                        signal_a['tp2'] = entry + atr * 3.0
-                        signal_a['tp3'] = entry + atr * 5.0
+                        signal_a['tp1'] = entry + atr * 2.0
+                        signal_a['tp2'] = entry + atr * 4.0
+                        signal_a['tp3'] = entry + atr * 6.0
                     else:
-                        signal_a['tp1'] = entry - atr * 1.5
-                        signal_a['tp2'] = entry - atr * 3.0
-                        signal_a['tp3'] = entry - atr * 5.0
+                        signal_a['tp1'] = entry - atr * 2.0
+                        signal_a['tp2'] = entry - atr * 4.0
+                        signal_a['tp3'] = entry - atr * 6.0
                 elif advanced['confidence'] == 'WEAK':
                     print(f"  [Skip] WEAK signal")
                     signal_a = None
+
+                # ===== SMC ФИЛЬТРЫ =====
+                if signal_a and htf_available:
+                    smc_confirmations = []
+                    
+                    if not check_htf_bias(df_1h, signal_a['signal'], HTF_EMA_PERIOD):
+                        print(f"  [SMC Blocked] A: {signal_a['signal']} против 1H EMA100")
+                        stats.add_blocked(symbol, signal_a['signal'], smc=True)
+                        blocked_count += 1
+                        smc_blocked_count += 1
+                        signal_a = None
+                    else:
+                        smc_confirmations.append(f"1H тренд совпадает")
+                        
+                        if detect_liquidity_sweep(df_a, signal_a['signal']):
+                            smc_confirmations.append("Liquidity Sweep")
+                        
+                        if detect_break_of_structure(df_a, signal_a['signal']):
+                            smc_confirmations.append("BOS")
+                        
+                        if signal_a and smc_confirmations:
+                            signal_a['confirmations'] = signal_a.get('confirmations', []) + smc_confirmations
 
                 if signal_a:
                     pressure = liq_stream.get_pressure(window_seconds=300)
@@ -1102,6 +1139,16 @@ def main():
             df_b = fetch_ohlcv(symbol, TIMEFRAME_B, limit=CANDLES_LIMIT)
             signal_b = generate_signal_b(df_b)
 
+            if signal_b and htf_available:
+                if not check_htf_bias(df_1h, signal_b['signal'], HTF_EMA_PERIOD):
+                    print(f"  [SMC Blocked] B: {signal_b['signal']} против 1H EMA100")
+                    stats.add_blocked(symbol, signal_b['signal'], smc=True)
+                    blocked_count += 1
+                    smc_blocked_count += 1
+                    signal_b = None
+                else:
+                    signal_b['confirmations'] = signal_b.get('confirmations', []) + ["1H тренд совпадает"]
+
             if signal_b:
                 signal_b = apply_coinglass_filter(signal_b, cg, symbol, df=df_b)
 
@@ -1116,7 +1163,7 @@ def main():
                     send_signal(signal_b, symbol)
                     stats.add_signal(signal_b, symbol)
                     new_signals += 1
-            else:
+            elif not signal_b:
                 print(f"  No B-signal")
 
         except Exception as e:
@@ -1125,7 +1172,7 @@ def main():
     liq_stream.stop()
     stats.save()
     print(f"\n[Stats] New signals this run: {new_signals}")
-    print(f"[Stats] Blocked this run: {blocked_count}")
+    print(f"[Stats] Blocked this run: {blocked_count} (SMC: {smc_blocked_count})")
 
     if stats.should_send_daily_report():
         report = stats.build_daily_report()
