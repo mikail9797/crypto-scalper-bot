@@ -1,5 +1,5 @@
 """
-Расширенное распознавание паттернов: разворотные, продолжения, объёмы, дивергенции.
+Расширенное распознавание паттернов: разворотные, продолжения, объёмы, дивергенции, SMC.
 Используется как усилитель уверенности сигнала, а не как обязательный фильтр.
 """
 import pandas as pd
@@ -92,8 +92,7 @@ def detect_flag(df: pd.DataFrame, lookback: int = 20) -> Optional[Dict]:
         return None
     return {
         'pattern': 'флаг',
-        'direction': 'bullish' if impulse_move > 0 else 'bearish',
-        'impulse_pct': impulse_pct
+        'direction': 'bullish' if impulse_move > 0 else 'bearish'
     }
 
 
@@ -113,10 +112,7 @@ def detect_pennant(df: pd.DataFrame, lookback: int = 15) -> Optional[Dict]:
     high_slope = np.polyfit(range(len(highs)), highs.values, 1)[0]
     low_slope = np.polyfit(range(len(lows)), lows.values, 1)[0]
     if high_slope < 0 and low_slope > 0:
-        return {
-            'pattern': 'вымпел',
-            'direction': 'bullish' if impulse_move > 0 else 'bearish'
-        }
+        return {'pattern': 'вымпел', 'direction': 'bullish' if impulse_move > 0 else 'bearish'}
     return None
 
 
@@ -223,6 +219,73 @@ def check_rsi_divergence(df: pd.DataFrame, lookback: int = 30) -> Optional[str]:
         if rsi_lows.iloc[p2_idx] > rsi_lows.iloc[p1_idx]:
             return 'bullish'
     return None
+
+
+# ==================== SMC ФИЛЬТРЫ ====================
+
+def detect_liquidity_sweep(df: pd.DataFrame, direction: str, lookback: int = 20) -> bool:
+    """Liquidity Sweep: цена пробила экстремум, но закрылась обратно."""
+    if len(df) < lookback + 3:
+        return False
+    
+    recent = df.iloc[-lookback-1:-1]
+    last = df.iloc[-1]
+    
+    if direction == 'LONG':
+        recent_low = recent['low'].min()
+        recent_low_idx = recent['low'].idxmin()
+        if recent_low_idx not in recent.index[-3:]:
+            return False
+        if last['low'] < recent_low and last['close'] > recent_low:
+            return True
+    
+    elif direction == 'SHORT':
+        recent_high = recent['high'].max()
+        recent_high_idx = recent['high'].idxmax()
+        if recent_high_idx not in recent.index[-3:]:
+            return False
+        if last['high'] > recent_high and last['close'] < recent_high:
+            return True
+    
+    return False
+
+
+def detect_break_of_structure(df: pd.DataFrame, direction: str, lookback: int = 30) -> bool:
+    """Break of Structure (BOS) — пробой структуры в направлении сигнала."""
+    if len(df) < lookback:
+        return False
+    
+    recent = df.iloc[-lookback:]
+    last = df.iloc[-1]
+    
+    if direction == 'LONG':
+        prev_highs = recent['high'].iloc[:-5].max()
+        if last['close'] > prev_highs:
+            return True
+    
+    elif direction == 'SHORT':
+        prev_lows = recent['low'].iloc[:-5].min()
+        if last['close'] < prev_lows:
+            return True
+    
+    return False
+
+
+def check_htf_bias(df_1h: pd.DataFrame, direction: str, ema_period: int = 100) -> bool:
+    """Проверяет соответствие сигнала старшему тренду (1H EMA 100)."""
+    if len(df_1h) < ema_period:
+        return True
+    
+    ema = df_1h['close'].ewm(span=ema_period, adjust=False).mean()
+    last_close = df_1h['close'].iloc[-1]
+    last_ema = ema.iloc[-1]
+    
+    if direction == 'LONG':
+        return last_close > last_ema
+    elif direction == 'SHORT':
+        return last_close < last_ema
+    
+    return True
 
 
 # ==================== АГРЕГАТОР ====================
