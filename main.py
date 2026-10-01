@@ -46,6 +46,12 @@ TRADING_END_HOUR_UTC = 22
 SIGNAL_TIMEOUT_HOURS = 6
 SIGNAL_MIN_AGE_HOURS = 1
 
+# Пороги для блокировки
+FUNDING_BLOCK_LONG = 0.003
+FUNDING_BLOCK_SHORT = -0.003
+LS_BLOCK_LONG = 3.0
+LS_BLOCK_SHORT = 0.33
+
 
 # ==================== ДИНАМИЧЕСКИЙ ОТБОР МОНЕТ ====================
 
@@ -111,6 +117,7 @@ class SignalStats:
             "short_count": 0,
             "strong_signals": 0,
             "medium_signals": 0,
+            "blocked_signals": 0,
             "by_symbol": {},
             "by_day": {},
             "active_signals": [],
@@ -159,7 +166,7 @@ class SignalStats:
         if today not in self.data["by_day"]:
             self.data["by_day"][today] = {
                 "total": 0, "A": 0, "B": 0,
-                "LONG": 0, "SHORT": 0, "symbols": {}
+                "LONG": 0, "SHORT": 0, "symbols": {}, "blocked": 0
             }
         
         day = self.data["by_day"][today]
@@ -189,11 +196,23 @@ class SignalStats:
             "result": None
         })
     
+    def add_blocked(self, symbol: str, reason: str):
+        today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        
+        self.data["blocked_signals"] = self.data.get("blocked_signals", 0) + 1
+        
+        if today not in self.data["by_day"]:
+            self.data["by_day"][today] = {
+                "total": 0, "A": 0, "B": 0,
+                "LONG": 0, "SHORT": 0, "symbols": {}, "blocked": 0
+            }
+        
+        if "blocked" not in self.data["by_day"][today]:
+            self.data["by_day"][today]["blocked"] = 0
+        
+        self.data["by_day"][today]["blocked"] += 1
+    
     def calculate_win_rate(self, days: int = 30) -> Dict:
-        """
-        Рассчитывает Win Rate за последние N дней.
-        Победа = TP1/TP2/TP3, Поражение = SL, NO_HIT не считается.
-        """
         cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=days)
         
         completed = [
@@ -254,6 +273,7 @@ class SignalStats:
         text += f"Всего сигналов: <b>{day_data['total']}</b>\n"
         text += f"🚀 A-SIGNAL: {day_data.get('A', 0)}\n"
         text += f"⚡ B-SIGNAL: {day_data.get('B', 0)}\n"
+        text += f"🚫 Заблокировано: {day_data.get('blocked', 0)}\n"
         text += f"🟢 LONG: {day_data['LONG']} | 🔴 SHORT: {day_data['SHORT']}\n\n"
         
         if day_data.get('symbols'):
@@ -267,11 +287,11 @@ class SignalStats:
         
         text += f"\n📈 <b>Всего за всё время:</b>\n"
         text += f"Сигналов: {self.data['total_signals']}\n"
+        text += f"🚫 Заблокировано: {self.data.get('blocked_signals', 0)}\n"
         text += f"🚀 A: {self.data.get('a_signals', 0)} | ⚡ B: {self.data.get('b_signals', 0)}\n"
         text += f"🔥 STRONG: {self.data.get('strong_signals', 0)} | ✅ MEDIUM: {self.data.get('medium_signals', 0)}\n"
         text += f"🟢 {self.data['long_count']} | 🔴 {self.data['short_count']}"
         
-        # Статистика TP/SL
         tp_stats = self.data.get("tp_stats", {})
         total_checked = sum(tp_stats.values())
         
@@ -285,7 +305,6 @@ class SignalStats:
             if tp_stats.get('no_hit', 0) > 0:
                 text += f"  Без движения: {tp_stats['no_hit']}\n"
         
-        # Win Rate за 1 / 7 / 30 дней
         wr_1d = self.calculate_win_rate(days=1)
         wr_7d = self.calculate_win_rate(days=7)
         wr_30d = self.calculate_win_rate(days=30)
@@ -812,40 +831,84 @@ def generate_signal_b(df_3m: pd.DataFrame) -> Optional[Dict]:
 
 # ==================== ФИЛЬТР COINGLASS ====================
 
-def apply_coinglass_filter(signal: Dict, cg: CoinGlassClient, symbol: str) -> Dict:
+def apply_coinglass_filter(signal: Dict, cg: CoinGlassClient, symbol: str, df: pd.DataFrame = None) -> Dict:
     if not signal:
         return None
 
     warnings = []
     confirmations = []
+    blocked = False
 
+    # ===== FUNDING RATE =====
     funding = cg.get_funding_rate(symbol)
     if funding and funding.get('data'):
         rate = float(funding['data'][0].get('close', 0))
-        if signal['signal'] == 'LONG' and rate > 0.001:
+        
+        if signal['signal'] == 'LONG' and rate > FUNDING_BLOCK_LONG:
+            warnings.append(f"Funding перегрет {rate*100:.3f}%")
+            blocked = True
+        elif signal['signal'] == 'SHORT' and rate < FUNDING_BLOCK_SHORT:
+            warnings.append(f"Funding перегрет {rate*100:.3f}%")
+            blocked = True
+        elif signal['signal'] == 'LONG' and rate > 0.001:
             warnings.append(f"Funding {rate*100:.3f}%")
-        if signal['signal'] == 'SHORT' and rate < -0.001:
+        elif signal['signal'] == 'SHORT' and rate < -0.001:
             warnings.append(f"Funding {rate*100:.3f}%")
 
+    # ===== OPEN INTEREST =====
     oi = cg.get_open_interest(symbol)
     if oi and oi.get('data') and len(oi['data']) >= 2:
-        curr = float(oi['data'][0].get('close', 0))
-        prev = float(oi['data'][1].get('close', 0))
-        change = (curr - prev) / prev * 100 if prev else 0
-        if abs(change) > 1.0:
-            confirmations.append(f"OI {change:+.2f}%")
+        curr_oi = float(oi['data'][0].get('close', 0))
+        prev_oi = float(oi['data'][1].get('close', 0))
+        oi_change = (curr_oi - prev_oi) / prev_oi * 100 if prev_oi else 0
+        
+        price_rising = None
+        if df is not None and len(df) >= 2:
+            price_change = (df['close'].iloc[-1] - df['close'].iloc[-2]) / df['close'].iloc[-2] * 100
+            price_rising = price_change > 0
+        
+        oi_rising = oi_change > 0
+        
+        if abs(oi_change) > 1.0:
+            if signal['signal'] == 'LONG':
+                if oi_rising and price_rising:
+                    confirmations.append(f"OI растёт {oi_change:+.2f}% — новые лонги")
+                elif oi_rising and not price_rising:
+                    confirmations.append(f"OI растёт {oi_change:+.2f}% — новые шорты")
+                elif not oi_rising:
+                    warnings.append(f"OI падает {oi_change:+.2f}% — закрытие позиций")
+                    blocked = True
+            elif signal['signal'] == 'SHORT':
+                if oi_rising and not price_rising:
+                    confirmations.append(f"OI растёт {oi_change:+.2f}% — новые шорты")
+                elif oi_rising and price_rising:
+                    warnings.append(f"OI растёт {oi_change:+.2f}% — новые лонги против сигнала")
+                    blocked = True
+                elif not oi_rising:
+                    warnings.append(f"OI падает {oi_change:+.2f}% — закрытие позиций")
+                    blocked = True
 
+    # ===== LONG/SHORT RATIO =====
     ls = cg.get_long_short_ratio(symbol)
     if ls and ls.get('data'):
         ratio = float(ls['data'][0].get('longShortRatio', 1))
-        if signal['signal'] == 'LONG' and ratio > 2.5:
+        
+        if signal['signal'] == 'LONG' and ratio > LS_BLOCK_LONG:
+            warnings.append(f"L/S экстрим {ratio:.2f}")
+            blocked = True
+        elif signal['signal'] == 'SHORT' and ratio < LS_BLOCK_SHORT:
+            warnings.append(f"L/S экстрим {ratio:.2f}")
+            blocked = True
+        elif signal['signal'] == 'LONG' and ratio > 2.5:
             warnings.append(f"L/S {ratio:.2f}")
-        if signal['signal'] == 'SHORT' and ratio < 0.5:
+        elif signal['signal'] == 'SHORT' and ratio < 0.5:
             warnings.append(f"L/S {ratio:.2f}")
 
-    existing = signal.get('confirmations', [])
-    signal['confirmations'] = existing + confirmations
-    signal['warnings'] = warnings
+    existing_conf = signal.get('confirmations', [])
+    existing_warn = signal.get('warnings', [])
+    signal['confirmations'] = existing_conf + confirmations
+    signal['warnings'] = existing_warn + warnings
+    signal['blocked'] = blocked
     return signal
 
 
@@ -933,6 +996,7 @@ def main():
     stats = SignalStats()
     print(f"[Stats] Total signals so far: {stats.data['total_signals']}")
     print(f"[Stats] Active signals: {len(stats.data.get('active_signals', []))}")
+    print(f"[Stats] Blocked signals: {stats.data.get('blocked_signals', 0)}")
 
     check_active_signals(stats)
     stats.save()
@@ -964,6 +1028,7 @@ def main():
     time.sleep(WS_WAIT_SECONDS)
 
     new_signals = 0
+    blocked_count = 0
 
     for symbol in symbols:
         try:
@@ -1016,8 +1081,15 @@ def main():
                     if signal_a['signal'] == 'SHORT' and pressure['short_liquidated_usd'] > 1_000_000:
                         signal_a['confirmations'].append(f"Short squeeze ${pressure['short_liquidated_usd']/1e6:.1f}M")
 
-                    signal_a = apply_coinglass_filter(signal_a, cg, symbol)
+                    signal_a = apply_coinglass_filter(signal_a, cg, symbol, df=df_a)
 
+                    if signal_a.get('blocked', False):
+                        print(f"  [Blocked] A: {signal_a['signal']} — {', '.join(signal_a.get('warnings', []))}")
+                        stats.add_blocked(symbol, signal_a['signal'])
+                        blocked_count += 1
+                        signal_a = None
+
+                if signal_a:
                     print(f"  A: {signal_a['signal']} ({signal_a['confidence']}) @ {signal_a['entry']:.4f}")
                     send_signal(signal_a, symbol)
                     stats.add_signal(signal_a, symbol)
@@ -1031,11 +1103,19 @@ def main():
             signal_b = generate_signal_b(df_b)
 
             if signal_b:
-                signal_b = apply_coinglass_filter(signal_b, cg, symbol)
-                print(f"  B: {signal_b['signal']} @ {signal_b['entry']:.4f}")
-                send_signal(signal_b, symbol)
-                stats.add_signal(signal_b, symbol)
-                new_signals += 1
+                signal_b = apply_coinglass_filter(signal_b, cg, symbol, df=df_b)
+
+                if signal_b.get('blocked', False):
+                    print(f"  [Blocked] B: {signal_b['signal']} — {', '.join(signal_b.get('warnings', []))}")
+                    stats.add_blocked(symbol, signal_b['signal'])
+                    blocked_count += 1
+                    signal_b = None
+
+                if signal_b:
+                    print(f"  B: {signal_b['signal']} @ {signal_b['entry']:.4f}")
+                    send_signal(signal_b, symbol)
+                    stats.add_signal(signal_b, symbol)
+                    new_signals += 1
             else:
                 print(f"  No B-signal")
 
@@ -1045,6 +1125,7 @@ def main():
     liq_stream.stop()
     stats.save()
     print(f"\n[Stats] New signals this run: {new_signals}")
+    print(f"[Stats] Blocked this run: {blocked_count}")
 
     if stats.should_send_daily_report():
         report = stats.build_daily_report()
