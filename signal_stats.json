@@ -211,7 +211,7 @@
         "NEARUSDT": 1,
         "BTCUSDT": 1
       },
-      "blocked": 2
+      "blocked": 3
     }
   },
   "last_report_date": "2026-10-02",
@@ -1773,6 +1773,6 @@
     }
   ],
   "medium_signals": 106,
-  "blocked_signals": 2,
-  "smc_blocked": 2
+  "blocked_signals": 3,
+  "smc_blocked": 3
 }
