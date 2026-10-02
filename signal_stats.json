@@ -1,8 +1,8 @@
 {
-  "total_signals": 110,
+  "total_signals": 111,
   "a_signals": 12,
-  "b_signals": 98,
-  "long_count": 46,
+  "b_signals": 99,
+  "long_count": 47,
   "short_count": 64,
   "by_symbol": {
     "ETHUSDT": {
@@ -62,7 +62,7 @@
       "SHORT": 4
     },
     "CTUSDT": {
-      "LONG": 1,
+      "LONG": 2,
       "SHORT": 1
     }
   },
@@ -200,13 +200,13 @@
       }
     },
     "2026-10-02": {
-      "total": 2,
+      "total": 3,
       "A": 0,
-      "B": 2,
-      "LONG": 2,
+      "B": 3,
+      "LONG": 3,
       "SHORT": 0,
       "symbols": {
-        "CTUSDT": 1,
+        "CTUSDT": 2,
         "XDPUSDT": 1
       },
       "blocked": 0
@@ -1725,8 +1725,22 @@
       "tp3": 0.019569813389424748,
       "atr": 3.820334735618668e-05,
       "created_at": "2026-10-02T03:11:21.602456",
+      "result": "SL"
+    },
+    {
+      "symbol": "CTUSDT",
+      "signal": "LONG",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 0.51364,
+      "stop_loss": 0.507857520364864,
+      "tp1": 0.519422479635136,
+      "tp2": 0.5256868325731999,
+      "tp3": 0.5329149321171198,
+      "atr": 0.004818733029279964,
+      "created_at": "2026-10-02T04:18:40.191013",
       "result": null
     }
   ],
-  "medium_signals": 103
+  "medium_signals": 104
 }
