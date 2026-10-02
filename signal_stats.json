@@ -209,7 +209,7 @@
         "CTUSDT": 2,
         "XDPUSDT": 1
       },
-      "blocked": 0
+      "blocked": 1
     }
   },
   "last_report_date": "2026-10-02",
@@ -1742,5 +1742,7 @@
       "result": null
     }
   ],
-  "medium_signals": 104
+  "medium_signals": 104,
+  "blocked_signals": 1,
+  "smc_blocked": 1
 }
