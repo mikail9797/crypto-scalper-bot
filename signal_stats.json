@@ -218,7 +218,7 @@
       "blocked": 3
     }
   },
-  "last_report_date": "2026-10-02",
+  "last_report_date": "2026-10-03",
   "started_at": "2026-09-22T14:18:10.775457",
   "active_signals": [
     {
@@ -779,7 +779,7 @@
       "tp3": 0.09739953158555267,
       "atr": 0.00011384927929424112,
       "created_at": "2026-09-26T11:58:51.132608",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "DOGEUSDT",
@@ -1829,7 +1829,7 @@
       "tp3": 1269.9350001812127,
       "atr": 4.703749954696814,
       "created_at": "2026-10-02T20:39:43.466292",
-      "result": "TP1"
+      "result": "SL"
     }
   ],
   "medium_signals": 110,
