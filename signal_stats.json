@@ -247,7 +247,7 @@
         "ETHUSDT": 2,
         "BTCUSDT": 2
       },
-      "blocked": 2
+      "blocked": 3
     }
   },
   "last_report_date": "2026-10-05",
@@ -1949,6 +1949,6 @@
     }
   ],
   "medium_signals": 116,
-  "blocked_signals": 6,
-  "smc_blocked": 6
+  "blocked_signals": 7,
+  "smc_blocked": 7
 }
