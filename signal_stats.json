@@ -238,7 +238,7 @@
       "blocked": 1
     }
   },
-  "last_report_date": "2026-10-04",
+  "last_report_date": "2026-10-05",
   "started_at": "2026-09-22T14:18:10.775457",
   "active_signals": [
     {
@@ -1247,7 +1247,7 @@
       "tp3": 0.09397829792810808,
       "atr": 0.0002446808764127639,
       "created_at": "2026-09-29T04:23:11.381762",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "ZECUSDT",
@@ -1709,7 +1709,7 @@
       "tp3": 85613.47104069995,
       "atr": 141.64276017498935,
       "created_at": "2026-10-01T17:42:11.802888",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "XDPUSDT",
