@@ -1,8 +1,8 @@
 {
-  "total_signals": 120,
+  "total_signals": 121,
   "a_signals": 12,
-  "b_signals": 108,
-  "long_count": 49,
+  "b_signals": 109,
+  "long_count": 50,
   "short_count": 71,
   "by_symbol": {
     "ETHUSDT": {
@@ -42,7 +42,7 @@
       "SHORT": 0
     },
     "BTCUSDT": {
-      "LONG": 6,
+      "LONG": 7,
       "SHORT": 7
     },
     "ONDOUSDT": {
@@ -238,13 +238,14 @@
       "blocked": 1
     },
     "2026-10-05": {
-      "total": 1,
+      "total": 2,
       "A": 0,
-      "B": 1,
-      "LONG": 1,
+      "B": 2,
+      "LONG": 2,
       "SHORT": 0,
       "symbols": {
-        "ETHUSDT": 1
+        "ETHUSDT": 1,
+        "BTCUSDT": 1
       },
       "blocked": 2
     }
@@ -1903,9 +1904,23 @@
       "atr": 3.2066008232606746,
       "created_at": "2026-10-05T02:24:58.881242",
       "result": "SL"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "signal": "LONG",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 86395.1,
+      "stop_loss": 86279.1879159706,
+      "tp1": 86511.01208402941,
+      "tp2": 86636.58350839459,
+      "tp3": 86781.47361343134,
+      "atr": 96.5934033578337,
+      "created_at": "2026-10-05T08:27:02.486451",
+      "result": null
     }
   ],
-  "medium_signals": 113,
+  "medium_signals": 114,
   "blocked_signals": 6,
   "smc_blocked": 6
 }
