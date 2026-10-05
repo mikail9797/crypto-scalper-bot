@@ -246,7 +246,7 @@
       "symbols": {
         "ETHUSDT": 1
       },
-      "blocked": 0
+      "blocked": 1
     }
   },
   "last_report_date": "2026-10-05",
@@ -1906,6 +1906,6 @@
     }
   ],
   "medium_signals": 113,
-  "blocked_signals": 4,
-  "smc_blocked": 4
+  "blocked_signals": 5,
+  "smc_blocked": 5
 }
