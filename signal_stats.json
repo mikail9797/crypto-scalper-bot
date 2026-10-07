@@ -1,13 +1,13 @@
 {
-  "total_signals": 127,
+  "total_signals": 128,
   "a_signals": 13,
-  "b_signals": 114,
+  "b_signals": 115,
   "long_count": 54,
-  "short_count": 73,
+  "short_count": 74,
   "by_symbol": {
     "ETHUSDT": {
       "LONG": 10,
-      "SHORT": 10
+      "SHORT": 11
     },
     "DOGEUSDT": {
       "LONG": 8,
@@ -258,6 +258,17 @@
       "symbols": {
         "ZECUSDT": 2,
         "ETHUSDT": 2
+      },
+      "blocked": 0
+    },
+    "2026-10-07": {
+      "total": 1,
+      "A": 0,
+      "B": 1,
+      "LONG": 0,
+      "SHORT": 1,
+      "symbols": {
+        "ETHUSDT": 1
       },
       "blocked": 0
     }
@@ -2014,9 +2025,23 @@
       "atr": 3.551086070817987,
       "created_at": "2026-10-06T16:05:46.134300",
       "result": "SL"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 2613.89,
+      "stop_loss": 2621.571517307458,
+      "tp1": 2606.2084826925416,
+      "tp2": 2597.8868389427957,
+      "tp3": 2588.284942308473,
+      "atr": 6.40126442288174,
+      "created_at": "2026-10-07T02:55:26.026830",
+      "result": null
     }
   ],
-  "medium_signals": 120,
+  "medium_signals": 121,
   "blocked_signals": 7,
   "smc_blocked": 7
 }
