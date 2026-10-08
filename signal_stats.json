@@ -281,7 +281,7 @@
       "symbols": {
         "CTUSDT": 1
       },
-      "blocked": 0
+      "blocked": 1
     }
   },
   "last_report_date": "2026-10-08",
@@ -2091,10 +2091,10 @@
       "tp3": 0.35371420359481653,
       "atr": 0.0016564491012958705,
       "created_at": "2026-10-08T02:53:14.102399",
-      "result": "TP2"
+      "result": "SL"
     }
   ],
   "medium_signals": 124,
-  "blocked_signals": 8,
-  "smc_blocked": 8
+  "blocked_signals": 9,
+  "smc_blocked": 9
 }
