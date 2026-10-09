@@ -295,7 +295,7 @@
       "LONG": 0,
       "SHORT": 0,
       "symbols": {},
-      "blocked": 1
+      "blocked": 2
     }
   },
   "last_report_date": "2026-10-09",
@@ -1839,7 +1839,7 @@
       "tp3": 4.8415921651606935,
       "atr": 0.0183519587098267,
       "created_at": "2026-10-02T09:16:15.907900",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "BTCUSDT",
@@ -2207,6 +2207,6 @@
     }
   ],
   "medium_signals": 131,
-  "blocked_signals": 11,
-  "smc_blocked": 11
+  "blocked_signals": 12,
+  "smc_blocked": 12
 }
