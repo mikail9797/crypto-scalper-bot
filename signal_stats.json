@@ -287,6 +287,15 @@
         "ETHUSDT": 1
       },
       "blocked": 2
+    },
+    "2026-10-09": {
+      "total": 0,
+      "A": 0,
+      "B": 0,
+      "LONG": 0,
+      "SHORT": 0,
+      "symbols": {},
+      "blocked": 1
     }
   },
   "last_report_date": "2026-10-09",
@@ -2198,6 +2207,6 @@
     }
   ],
   "medium_signals": 131,
-  "blocked_signals": 10,
-  "smc_blocked": 10
+  "blocked_signals": 11,
+  "smc_blocked": 11
 }
