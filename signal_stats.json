@@ -289,7 +289,7 @@
       "blocked": 2
     }
   },
-  "last_report_date": "2026-10-08",
+  "last_report_date": "2026-10-09",
   "started_at": "2026-09-22T14:18:10.775457",
   "active_signals": [
     {
@@ -2096,7 +2096,7 @@
       "tp3": 0.35371420359481653,
       "atr": 0.0016564491012958705,
       "created_at": "2026-10-08T02:53:14.102399",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "BTCUSDT",
