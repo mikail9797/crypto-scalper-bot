@@ -1,8 +1,8 @@
 {
-  "total_signals": 142,
+  "total_signals": 143,
   "a_signals": 14,
-  "b_signals": 128,
-  "long_count": 55,
+  "b_signals": 129,
+  "long_count": 56,
   "short_count": 87,
   "by_symbol": {
     "ETHUSDT": {
@@ -66,7 +66,7 @@
       "SHORT": 4
     },
     "STRKUSDT": {
-      "LONG": 1,
+      "LONG": 2,
       "SHORT": 0
     }
   },
@@ -306,6 +306,17 @@
       "blocked": 2
     },
     "2026-10-10": {
+      "total": 1,
+      "A": 0,
+      "B": 1,
+      "LONG": 1,
+      "SHORT": 0,
+      "symbols": {
+        "STRKUSDT": 1
+      },
+      "blocked": 0
+    },
+    "2026-10-11": {
       "total": 1,
       "A": 0,
       "B": 1,
@@ -2279,9 +2290,23 @@
       "atr": 0.0011605937823291682,
       "created_at": "2026-10-10T20:47:39.224806",
       "result": "SL"
+    },
+    {
+      "symbol": "STRKUSDT",
+      "signal": "LONG",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 0.11535,
+      "stop_loss": 0.11400009573483465,
+      "tp1": 0.11669990426516534,
+      "tp2": 0.11816230055242778,
+      "tp3": 0.11984968088388447,
+      "atr": 0.0011249202209711172,
+      "created_at": "2026-10-11T12:15:54.806499",
+      "result": null
     }
   ],
-  "medium_signals": 135,
+  "medium_signals": 136,
   "blocked_signals": 12,
   "smc_blocked": 12
 }
