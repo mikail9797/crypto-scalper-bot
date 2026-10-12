@@ -339,7 +339,7 @@
         "BTCUSDT": 1,
         "ZECUSDT": 1
       },
-      "blocked": 2
+      "blocked": 3
     }
   },
   "last_report_date": "2026-10-12",
@@ -2391,6 +2391,6 @@
     }
   ],
   "medium_signals": 141,
-  "blocked_signals": 15,
-  "smc_blocked": 15
+  "blocked_signals": 16,
+  "smc_blocked": 16
 }
