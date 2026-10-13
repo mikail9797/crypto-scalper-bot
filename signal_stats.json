@@ -351,7 +351,7 @@
       "symbols": {
         "STRKUSDT": 1
       },
-      "blocked": 0
+      "blocked": 1
     }
   },
   "last_report_date": "2026-10-13",
@@ -1727,7 +1727,7 @@
       "tp3": 83179.41629618141,
       "atr": 117.03804719026412,
       "created_at": "2026-10-01T08:02:02.324080",
-      "result": "TP3"
+      "result": "SL"
     },
     {
       "symbol": "ETHUSDT",
@@ -2445,6 +2445,6 @@
     }
   ],
   "medium_signals": 144,
-  "blocked_signals": 17,
-  "smc_blocked": 17
+  "blocked_signals": 18,
+  "smc_blocked": 18
 }
