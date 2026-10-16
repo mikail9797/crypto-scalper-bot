@@ -1,9 +1,9 @@
 {
-  "total_signals": 154,
+  "total_signals": 155,
   "a_signals": 15,
-  "b_signals": 139,
+  "b_signals": 140,
   "long_count": 61,
-  "short_count": 93,
+  "short_count": 94,
   "by_symbol": {
     "ETHUSDT": {
       "LONG": 11,
@@ -67,7 +67,7 @@
     },
     "STRKUSDT": {
       "LONG": 3,
-      "SHORT": 1
+      "SHORT": 2
     }
   },
   "by_day": {
@@ -373,6 +373,17 @@
       "SHORT": 1,
       "symbols": {
         "ZECUSDT": 1
+      },
+      "blocked": 0
+    },
+    "2026-10-16": {
+      "total": 1,
+      "A": 0,
+      "B": 1,
+      "LONG": 0,
+      "SHORT": 1,
+      "symbols": {
+        "STRKUSDT": 1
       },
       "blocked": 0
     }
@@ -1414,7 +1425,7 @@
       "tp3": 4.796585757849828,
       "atr": 0.021175344477194238,
       "created_at": "2026-09-29T07:37:52.339090",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "DOGEUSDT",
@@ -2240,7 +2251,7 @@
       "tp3": 0.08019035346886035,
       "atr": 0.0005799116327849133,
       "created_at": "2026-10-08T16:06:04.191382",
-      "result": "TP3"
+      "result": "TP2"
     },
     {
       "symbol": "DOGEUSDT",
@@ -2507,9 +2518,23 @@
       "atr": 9.925621186686454,
       "created_at": "2026-10-15T02:54:47.314951",
       "result": "SL"
+    },
+    {
+      "symbol": "STRKUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 0.07866,
+      "stop_loss": 0.07929184404444956,
+      "tp1": 0.07802815595555043,
+      "tp2": 0.07734365824073007,
+      "tp3": 0.07655385318516811,
+      "atr": 0.0005265367037079718,
+      "created_at": "2026-10-16T08:18:21.220184",
+      "result": null
     }
   ],
-  "medium_signals": 147,
+  "medium_signals": 148,
   "blocked_signals": 18,
   "smc_blocked": 18
 }
