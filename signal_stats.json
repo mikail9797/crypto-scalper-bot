@@ -422,7 +422,7 @@
       "blocked": 0
     }
   },
-  "last_report_date": "2026-10-20",
+  "last_report_date": "2026-10-21",
   "started_at": "2026-09-22T14:18:10.775457",
   "active_signals": [
     {
@@ -1459,7 +1459,7 @@
       "tp3": 4.796585757849828,
       "atr": 0.021175344477194238,
       "created_at": "2026-09-29T07:37:52.339090",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "DOGEUSDT",
@@ -2033,7 +2033,7 @@
       "tp3": 1269.9350001812127,
       "atr": 4.703749954696814,
       "created_at": "2026-10-02T20:39:43.466292",
-      "result": "TP3"
+      "result": "SL"
     },
     {
       "symbol": "CTUSDT",
