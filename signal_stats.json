@@ -1,13 +1,13 @@
 {
-  "total_signals": 161,
+  "total_signals": 163,
   "a_signals": 15,
-  "b_signals": 146,
+  "b_signals": 148,
   "long_count": 62,
-  "short_count": 99,
+  "short_count": 101,
   "by_symbol": {
     "ETHUSDT": {
       "LONG": 11,
-      "SHORT": 18
+      "SHORT": 19
     },
     "DOGEUSDT": {
       "LONG": 8,
@@ -27,7 +27,7 @@
     },
     "ZECUSDT": {
       "LONG": 9,
-      "SHORT": 20
+      "SHORT": 21
     },
     "NEARUSDT": {
       "LONG": 2,
@@ -420,6 +420,18 @@
         "ETHUSDT": 1
       },
       "blocked": 0
+    },
+    "2026-10-22": {
+      "total": 2,
+      "A": 0,
+      "B": 2,
+      "LONG": 0,
+      "SHORT": 2,
+      "symbols": {
+        "ETHUSDT": 1,
+        "ZECUSDT": 1
+      },
+      "blocked": 0
     }
   },
   "last_report_date": "2026-10-21",
@@ -436,7 +448,7 @@
       "tp3": 12.211720976692023,
       "atr": 0.029093007769325316,
       "created_at": "2026-09-23T21:44:54.413620",
-      "result": "SL",
+      "result": "TP3",
       "hit_price": 12.342639511653987
     },
     {
@@ -745,7 +757,7 @@
       "tp3": 84056.51050214648,
       "atr": 84.58613538796334,
       "created_at": "2026-09-25T03:21:48.196078",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "ZECUSDT",
@@ -1151,7 +1163,7 @@
       "tp3": 84366.04542466074,
       "atr": 88.38844333602503,
       "created_at": "2026-09-27T14:51:23.170139",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "SOLUSDT",
@@ -1193,7 +1205,7 @@
       "tp3": 83193.06848364598,
       "atr": 102.8325074336448,
       "created_at": "2026-09-28T02:59:17.064305",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "SOLUSDT",
@@ -1249,7 +1261,7 @@
       "tp3": 82799.56215846281,
       "atr": 91.15356433508796,
       "created_at": "2026-09-28T08:18:22.620533",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "BTCUSDT",
@@ -1263,7 +1275,7 @@
       "tp3": 82670.55952532767,
       "atr": 103.24682489077865,
       "created_at": "2026-09-28T10:55:32.514990",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "XRPUSDT",
@@ -1557,7 +1569,7 @@
       "tp3": 82759.28872725119,
       "atr": 111.55057852218317,
       "created_at": "2026-09-29T16:53:33.610795",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "SOLUSDT",
@@ -1795,7 +1807,7 @@
       "tp3": 83179.41629618141,
       "atr": 117.03804719026412,
       "created_at": "2026-10-01T08:02:02.324080",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "ETHUSDT",
@@ -2131,7 +2143,7 @@
       "tp3": 1313.444006354393,
       "atr": 2.438998411401745,
       "created_at": "2026-10-06T07:00:22.667813",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "ETHUSDT",
@@ -2271,7 +2283,7 @@
       "tp3": 106.03626144565108,
       "atr": 0.555934638587232,
       "created_at": "2026-10-08T16:05:41.215259",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "DOGEUSDT",
@@ -2285,7 +2297,7 @@
       "tp3": 0.08019035346886035,
       "atr": 0.0005799116327849133,
       "created_at": "2026-10-08T16:06:04.191382",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "DOGEUSDT",
@@ -2299,7 +2311,7 @@
       "tp3": 0.08116889735378961,
       "atr": 0.0004577756615525975,
       "created_at": "2026-10-08T16:44:56.957008",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "BTCUSDT",
@@ -2341,7 +2353,7 @@
       "tp3": 1.3805818845250377,
       "atr": 0.0025295288687405735,
       "created_at": "2026-10-09T13:10:55.387882",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "BTCUSDT",
@@ -2481,7 +2493,7 @@
       "tp3": 2492.815600277119,
       "atr": 3.156099930720262,
       "created_at": "2026-10-12T17:42:49.350516",
-      "result": "SL"
+      "result": "TP3"
     },
     {
       "symbol": "ZECUSDT",
@@ -2650,9 +2662,37 @@
       "atr": 3.9453100896899134,
       "created_at": "2026-10-20T09:05:02.296968",
       "result": "SL"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 2381.23,
+      "stop_loss": 2384.502239070396,
+      "tp1": 2377.957760929604,
+      "tp2": 2374.4128352700077,
+      "tp3": 2370.322536432012,
+      "atr": 2.7268658919969777,
+      "created_at": "2026-10-22T20:47:52.373022",
+      "result": null
+    },
+    {
+      "symbol": "ZECUSDT",
+      "signal": "SHORT",
+      "type": "B",
+      "confidence": "MEDIUM",
+      "entry": 1207.92,
+      "stop_loss": 1212.3993791711514,
+      "tp1": 1203.4406208288488,
+      "tp2": 1198.5879600601013,
+      "tp3": 1192.9887360961623,
+      "atr": 3.7328159759594692,
+      "created_at": "2026-10-22T20:48:00.109871",
+      "result": null
     }
   ],
-  "medium_signals": 154,
+  "medium_signals": 156,
   "blocked_signals": 19,
   "smc_blocked": 19
 }
